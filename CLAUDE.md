@@ -33,7 +33,27 @@ Tela inicial: lista do rebanho, contadores (total/♂/♀), excluir, exportar CS
 
 - `localStorage` chave `idbov-rebanho-v1`:
   `[{ id, brinco, sexo:'M'|'F', raca, idade, obs, data }]`
-- Sem nuvem por enquanto (dados ficam só no aparelho).
+- `localStorage` chave `idbov-excluidos-v1`: lápides `[ids]` (máx 500) para a
+  mesclagem com a nuvem não ressuscitar animais apagados.
+
+## Nuvem (Firebase — opcional, v2)
+
+- **Mesmo projeto Firebase do Colaborador Eficiente** (`colaborador-eficiente`)
+  → a mesma conta/e-mail funciona nos dois apps. App NOMEADO `'idbov'`
+  (sessão isolada, regra do usuário: nunca autenticar no app padrão).
+- Firestore: coleção `idbov/{uid}` → `{ rebanho:[...], excluidos:[...], email, updatedAt }`.
+- **Regras do Firestore precisam do bloco** (console → Firestore → Regras):
+  ```
+  match /idbov/{uid} {
+    allow read, write: if request.auth != null && request.auth.uid == uid;
+  }
+  ```
+- Local-first: o app funciona sem conta; botão ☁️ no cabeçalho abre
+  login/criar conta/redefinir senha. Ao logar, `puxarEMesclar()` faz união por
+  id com lápides; `salvar()` → `agendarSync()` (debounce 1,2s) → `empurrarNuvem()`.
+- Trava anti-sobrescrever: `_nuvemOk` só libera gravação após ler a nuvem.
+- Sem internet: `_pendente` + listener `online` reenvia; dot no ☁️ mostra
+  o estado (cinza deslogado / dourado pendente / verde ok).
 
 ## Deploy
 

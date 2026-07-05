@@ -10,6 +10,10 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
+  <!-- Firebase (nuvem) — mesmo projeto do Colaborador Eficiente -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
 
@@ -123,6 +127,20 @@
     #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
     .hint{text-align:center;color:var(--text-2);font-size:0.95rem;margin-bottom:14px}
+
+    /* ── Nuvem: botão do cabeçalho + modal ── */
+    #btnNuvem{position:relative;display:flex;align-items:center;justify-content:center}
+    #nuvemDot{position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:#8A9289;border:1.5px solid var(--green-deep)}
+    #nuvemDot.ok{background:#3ECF6E}
+    #nuvemDot.pendente{background:var(--gold)}
+    .overlay{display:none;position:fixed;inset:0;background:rgba(10,24,15,.55);z-index:50;align-items:center;justify-content:center;padding:18px}
+    .overlay.visivel{display:flex}
+    .caixa{background:var(--card);border-radius:20px;padding:20px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(8,25,16,.35)}
+    .caixa h3{font-size:1.05rem;font-weight:800;color:var(--green-deep);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+    .caixa input{width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);margin-bottom:10px;outline:none;font-family:inherit}
+    .caixa .erro{display:none;background:var(--red-light);color:var(--red);border-radius:10px;padding:9px 12px;font-size:0.8rem;font-weight:700;margin-bottom:10px}
+    .btn-nuvem-acao{width:100%;border:none;cursor:pointer;font-family:'Manrope',sans-serif;font-size:0.95rem;background:var(--green);color:#fff;font-weight:800;padding:13px;border-radius:12px;box-shadow:0 4px 0 #0f5a2c;margin-bottom:9px}
+    .btn-nuvem-sec{width:100%;border:1.5px solid var(--border);cursor:pointer;font-family:inherit;font-size:0.86rem;background:#fff;color:var(--text);font-weight:700;padding:11px;border-radius:12px;margin-bottom:9px}
   </style>
 </head>
 <body>
@@ -132,6 +150,10 @@
     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#D8A521" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6c0 2.2 1.6 3.5 3.4 3.5M20 6c0 2.2-1.6 3.5-3.4 3.5"/><ellipse cx="12" cy="13" rx="5.5" ry="5"/><circle cx="10" cy="12" r=".6" fill="#D8A521"/><circle cx="14" cy="12" r=".6" fill="#D8A521"/><path d="M10 16c.5.5 1.2.8 2 .8s1.5-.3 2-.8"/></svg>
     ID-Bov
   </h1>
+  <button class="btn-header" id="btnNuvem" onclick="abrirNuvem()" title="Nuvem / conta">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.6A4 4 0 0 0 6.5 18z"/></svg>
+    <span id="nuvemDot"></span>
+  </button>
   <span class="badge" id="badgeTotal">0 animais</span>
 </header>
 
@@ -159,6 +181,14 @@
   <div id="wizBody"></div>
 </div>
 
+<!-- ══ MODAL: NUVEM / CONTA ══ -->
+<div class="overlay" id="modalNuvem" onclick="if(event.target===this)fecharNuvem()">
+  <div class="caixa">
+    <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#166B4A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.6A4 4 0 0 0 6.5 18z"/></svg> Nuvem</h3>
+    <div id="nuvemBody"></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -180,7 +210,7 @@ const PASSOS = ['brinco','sexo','raca','idade','obs'];
 
 // ── Persistência ──
 function carregar(){ try{ rebanho = JSON.parse(localStorage.getItem(DB_KEY)) || []; }catch(e){ rebanho=[]; } }
-function salvar(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(rebanho)); }catch(e){} }
+function salvar(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(rebanho)); }catch(e){} agendarSync(); }
 
 function labelIdade(v){ const o=IDADES.find(i=>i.v===v); return o?o.l:v; }
 function labelSexo(v){ return v==='M'?'Macho':(v==='F'?'Fêmea':''); }
@@ -236,6 +266,9 @@ function excluir(id){
   const a=rebanho.find(x=>x.id===id); if(!a) return;
   if(!confirm('Excluir o animal de brinco '+a.brinco+'?')) return;
   rebanho=rebanho.filter(x=>x.id!==id);
+  // Lápide: registra a exclusão para a nuvem não "ressuscitar" o animal ao mesclar
+  if(!excluidos.includes(id)) excluidos.push(id);
+  salvarExcluidos();
   salvar(); renderHome();
   toast('Animal '+a.brinco+' excluído');
 }
@@ -390,9 +423,181 @@ function salvarAnimal(){
   window.scrollTo(0,0);
 }
 
+// ══════════════════════════════════════════════
+//  NUVEM — Firebase (mesmo projeto/conta do Colaborador Eficiente)
+//  O app continua 100% funcional sem conta; a nuvem é opcional.
+// ══════════════════════════════════════════════
+// Config pública — a segurança vem das regras do Firestore + login.
+const FIREBASE_CFG = {
+  apiKey: "AIzaSyCo60G2fqYY4qEixzRC2_thhavukXyiPBY",
+  authDomain: "colaborador-eficiente.firebaseapp.com",
+  projectId: "colaborador-eficiente",
+  storageBucket: "colaborador-eficiente.firebasestorage.app",
+  messagingSenderId: "457032380116",
+  appId: "1:457032380116:web:682c4329691a8eb4b21541"
+};
+const EXC_KEY = 'idbov-excluidos-v1';
+let excluidos = [];
+let _auth=null, _db=null, _uid=null, _email='';
+let _nuvemOk=false;      // trava: só grava na nuvem depois de ler o estado dela
+let _syncTimer=null, _pendente=false, _erroMostrado=false;
+
+function carregarExcluidos(){ try{ excluidos = JSON.parse(localStorage.getItem(EXC_KEY)) || []; }catch(e){ excluidos=[]; } }
+function salvarExcluidos(){ try{ localStorage.setItem(EXC_KEY, JSON.stringify(excluidos.slice(-500))); }catch(e){} }
+
+function iniciarNuvem(){
+  if(!window.firebase) return;   // sem internet na 1ª visita: SDK não carregou — segue local
+  try{
+    // App NOMEADO 'idbov': sessão isolada de qualquer outro app Firebase
+    const app = firebase.apps.find(a=>a.name==='idbov') || firebase.initializeApp(FIREBASE_CFG,'idbov');
+    _auth = app.auth(); _auth.languageCode='pt';
+    _db = app.firestore();
+    try{ _db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
+    _auth.onAuthStateChanged(onAuthMudou);
+    window.addEventListener('online', ()=>{ if(_pendente) empurrarNuvem(); });
+  }catch(e){ console.error('iniciarNuvem:',e); }
+}
+
+async function onAuthMudou(user){
+  _uid = user ? user.uid : null;
+  _email = user ? (user.email||'') : '';
+  if(_uid){ await puxarEMesclar(); }
+  else { _nuvemOk=false; }
+  atualizarDotNuvem();
+}
+
+function docNuvem(){ return _db.collection('idbov').doc(_uid); }
+
+// Mescla aparelho + nuvem: união por id, respeitando as lápides de exclusão
+async function puxarEMesclar(){
+  try{
+    const doc = await docNuvem().get();
+    const nuvem = doc.exists ? doc.data() : null;
+    const excTot = [...new Set([...excluidos, ...((nuvem&&nuvem.excluidos)||[])])];
+    const porId = {};
+    [...((nuvem&&nuvem.rebanho)||[]), ...rebanho].forEach(a=>{ porId[a.id]=a; });
+    rebanho = Object.values(porId).filter(a=>!excTot.includes(a.id)).sort((a,b)=>a.data-b.data);
+    excluidos = excTot;
+    salvarExcluidos();
+    _nuvemOk = true;         // estado conhecido: liberado para gravar
+    salvar();                // grava local + agenda envio à nuvem
+    renderHome();
+  }catch(e){ tratarErroNuvem(e); }
+}
+
+function agendarSync(){
+  if(!_uid || !_nuvemOk) return;
+  _pendente = true;
+  atualizarDotNuvem();
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(empurrarNuvem, 1200);
+}
+
+async function empurrarNuvem(){
+  if(!_db || !_uid || !_nuvemOk) return;
+  try{
+    await docNuvem().set({
+      rebanho: rebanho.map(a=>({id:a.id,brinco:a.brinco,sexo:a.sexo,raca:a.raca,idade:a.idade,obs:a.obs||'',data:a.data})),
+      excluidos: excluidos.slice(-500),
+      email: _email,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    _pendente=false; _erroMostrado=false;
+  }catch(e){ _pendente=true; tratarErroNuvem(e); }
+  atualizarDotNuvem();
+}
+
+function tratarErroNuvem(e){
+  console.error('nuvem:', e);
+  if(e && e.code==='permission-denied'){
+    if(!_erroMostrado){ toast('⚠️ Nuvem ainda não liberada para o ID-Bov (regras do Firebase)', 6000); _erroMostrado=true; }
+    return;
+  }
+  if(!_erroMostrado){ toast('📴 Sem internet — guardado no aparelho, sincroniza sozinho depois', 5000); _erroMostrado=true; }
+}
+
+function atualizarDotNuvem(){
+  const d=document.getElementById('nuvemDot');
+  d.className = _uid ? (_pendente?'pendente':'ok') : '';
+}
+
+// ── Modal da nuvem ──
+function abrirNuvem(){
+  const body=document.getElementById('nuvemBody');
+  if(!window.firebase){
+    body.innerHTML=`<p style="font-size:0.88rem;color:var(--text-2);line-height:1.5;margin-bottom:12px">Sem internet agora. A nuvem fica disponível quando a conexão voltar — seus dados continuam guardados no aparelho.</p>
+      <button class="btn-nuvem-sec" onclick="fecharNuvem()">Fechar</button>`;
+  }
+  else if(_uid){
+    body.innerHTML=`
+      <p style="font-size:0.88rem;color:var(--text-2);line-height:1.5;margin-bottom:12px">Conectado como<br><b style="color:var(--text)">${escaparHTML(_email)}</b></p>
+      <p style="font-size:0.82rem;color:var(--text-2);line-height:1.5;margin-bottom:14px">${_pendente?'⏳ Enviando alterações...':'✅ Rebanho sincronizado na nuvem.'}</p>
+      <button class="btn-nuvem-sec" style="color:var(--red);border-color:rgba(221,82,55,.35)" onclick="nuvemSair()">Sair da conta</button>
+      <button class="btn-nuvem-sec" onclick="fecharNuvem()">Fechar</button>`;
+  }
+  else {
+    body.innerHTML=`
+      <p style="font-size:0.85rem;color:var(--text-2);line-height:1.5;margin-bottom:12px">Entre para guardar o rebanho na nuvem e acessar de qualquer aparelho. <b>Pode usar a mesma conta do Colaborador Eficiente.</b></p>
+      <div class="erro" id="nuvemErro"></div>
+      <input id="nuvemEmail" type="email" placeholder="E-mail" autocomplete="email">
+      <input id="nuvemSenha" type="password" placeholder="Senha (mín. 6)" autocomplete="current-password">
+      <button class="btn-nuvem-acao" onclick="nuvemEntrar()">Entrar</button>
+      <button class="btn-nuvem-sec" onclick="nuvemCriar()">Criar conta nova</button>
+      <button class="btn-nuvem-sec" onclick="nuvemRedefinir()">Esqueci a senha</button>
+      <button class="btn-nuvem-sec" onclick="fecharNuvem()">Agora não</button>`;
+  }
+  document.getElementById('modalNuvem').classList.add('visivel');
+}
+function fecharNuvem(){ document.getElementById('modalNuvem').classList.remove('visivel'); }
+
+function nuvemErro(msg){ const e=document.getElementById('nuvemErro'); if(e){ e.textContent=msg; e.style.display='block'; } }
+function traduzErroAuth(e){
+  const c=(e&&e.code)||'';
+  return ({
+    'auth/invalid-email':'E-mail inválido.',
+    'auth/user-not-found':'Conta não encontrada. Toque em "Criar conta nova".',
+    'auth/wrong-password':'Senha incorreta.',
+    'auth/invalid-credential':'E-mail ou senha incorretos.',
+    'auth/email-already-in-use':'Este e-mail já tem conta. Toque em "Entrar".',
+    'auth/weak-password':'Senha muito fraca (mínimo 6 caracteres).',
+    'auth/too-many-requests':'Muitas tentativas. Aguarde um pouco.',
+    'auth/network-request-failed':'Sem conexão com a internet.'
+  }[c]) || ('Erro: '+(e.message||c));
+}
+function _credenciais(){
+  const em=document.getElementById('nuvemEmail').value.trim();
+  const sn=document.getElementById('nuvemSenha').value;
+  if(!em||!sn){ nuvemErro('Preencha e-mail e senha.'); return null; }
+  return {em,sn};
+}
+async function nuvemEntrar(){
+  const c=_credenciais(); if(!c) return;
+  try{ await _auth.signInWithEmailAndPassword(c.em,c.sn); fecharNuvem(); toast('☁️ Nuvem ativada — sincronizando...'); }
+  catch(e){ nuvemErro(traduzErroAuth(e)); }
+}
+async function nuvemCriar(){
+  const c=_credenciais(); if(!c) return;
+  try{ await _auth.createUserWithEmailAndPassword(c.em,c.sn); fecharNuvem(); toast('☁️ Conta criada — nuvem ativada!'); }
+  catch(e){ nuvemErro(traduzErroAuth(e)); }
+}
+async function nuvemRedefinir(){
+  const em=document.getElementById('nuvemEmail').value.trim();
+  if(!em){ nuvemErro('Digite seu e-mail no campo acima.'); return; }
+  try{ await _auth.sendPasswordResetEmail(em); nuvemErro(''); toast('📧 E-mail de redefinição enviado para '+em, 5000); }
+  catch(e){ nuvemErro(traduzErroAuth(e)); }
+}
+async function nuvemSair(){
+  try{ await _auth.signOut(); }catch(e){}
+  _nuvemOk=false; _pendente=false;
+  fecharNuvem(); atualizarDotNuvem();
+  toast('Você saiu da conta. Os dados continuam no aparelho.');
+}
+
 // ── Início ──
 carregar();
+carregarExcluidos();
 renderHome();
+iniciarNuvem();
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
