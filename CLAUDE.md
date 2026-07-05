@@ -37,6 +37,8 @@ Tela inicial: lista do rebanho, contadores (total/♂/♀), excluir, exportar CS
 
 ## Deploy
 
-- Ainda sem repositório remoto/hospedagem. Quando publicar, seguir o mesmo
-  padrão do cochos-sal (GitHub + Cloudflare Workers com deploy automático).
+- **GitHub:** `git@github.com:fabriciomarquezr-del/id-bov.git` (branch: main)
+- **Cloudflare:** conectar em dash.cloudflare.com → Workers & Pages →
+  Connect to Git → id-bov (sem configuração de build; site estático).
+- **Para publicar:** `git add . && git commit -m "mensagem" && git push`
 - **Sempre incrementar `CACHE = 'id-bov-vXX'` no sw.js ao publicar.**
