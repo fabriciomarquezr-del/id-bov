@@ -424,17 +424,17 @@ function salvarAnimal(){
 }
 
 // ══════════════════════════════════════════════
-//  NUVEM — Firebase (mesmo projeto/conta do Colaborador Eficiente)
+//  NUVEM — Firebase (projeto PRÓPRIO do ID-Bov, independente de outros apps)
 //  O app continua 100% funcional sem conta; a nuvem é opcional.
 // ══════════════════════════════════════════════
 // Config pública — a segurança vem das regras do Firestore + login.
 const FIREBASE_CFG = {
-  apiKey: "AIzaSyCo60G2fqYY4qEixzRC2_thhavukXyiPBY",
-  authDomain: "colaborador-eficiente.firebaseapp.com",
-  projectId: "colaborador-eficiente",
-  storageBucket: "colaborador-eficiente.firebasestorage.app",
-  messagingSenderId: "457032380116",
-  appId: "1:457032380116:web:682c4329691a8eb4b21541"
+  apiKey: "AIzaSyAWM8ogtyrPrVZOGpaynzyrfiO6qW97Kyk",
+  authDomain: "id-bov.firebaseapp.com",
+  projectId: "id-bov",
+  storageBucket: "id-bov.firebasestorage.app",
+  messagingSenderId: "797957457641",
+  appId: "1:797957457641:web:5108442e6105d5bc179278"
 };
 const EXC_KEY = 'idbov-excluidos-v1';
 let excluidos = [];
@@ -537,7 +537,7 @@ function abrirNuvem(){
   }
   else {
     body.innerHTML=`
-      <p style="font-size:0.85rem;color:var(--text-2);line-height:1.5;margin-bottom:12px">Entre para guardar o rebanho na nuvem e acessar de qualquer aparelho. <b>Pode usar a mesma conta do Colaborador Eficiente.</b></p>
+      <p style="font-size:0.85rem;color:var(--text-2);line-height:1.5;margin-bottom:12px">Entre para guardar o rebanho na nuvem e acessar de qualquer aparelho. Primeira vez? Toque em <b>"Criar conta nova"</b>.</p>
       <div class="erro" id="nuvemErro"></div>
       <input id="nuvemEmail" type="email" placeholder="E-mail" autocomplete="email">
       <input id="nuvemSenha" type="password" placeholder="Senha (mín. 6)" autocomplete="current-password">

@@ -36,16 +36,23 @@ Tela inicial: lista do rebanho, contadores (total/♂/♀), excluir, exportar CS
 - `localStorage` chave `idbov-excluidos-v1`: lápides `[ids]` (máx 500) para a
   mesclagem com a nuvem não ressuscitar animais apagados.
 
-## Nuvem (Firebase — opcional, v2)
+## Nuvem (Firebase — opcional, v3)
 
-- **Mesmo projeto Firebase do Colaborador Eficiente** (`colaborador-eficiente`)
-  → a mesma conta/e-mail funciona nos dois apps. App NOMEADO `'idbov'`
-  (sessão isolada, regra do usuário: nunca autenticar no app padrão).
+- **Projeto Firebase PRÓPRIO: `id-bov`** — totalmente independente do
+  Colaborador Eficiente (decisão do usuário em 05/07/2026: banco, contas e
+  cotas separados; a conta do outro app NÃO funciona aqui). App NOMEADO
+  `'idbov'`. Na v2 chegou a usar o projeto `colaborador-eficiente`; trocado
+  na v3 antes de existir qualquer dado na nuvem.
 - Firestore: coleção `idbov/{uid}` → `{ rebanho:[...], excluidos:[...], email, updatedAt }`.
-- **Regras do Firestore precisam do bloco** (console → Firestore → Regras):
+- **Regras do Firestore** (console do projeto id-bov → Firestore → Regras):
   ```
-  match /idbov/{uid} {
-    allow read, write: if request.auth != null && request.auth.uid == uid;
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /idbov/{uid} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
   }
   ```
 - Local-first: o app funciona sem conta; botão ☁️ no cabeçalho abre
