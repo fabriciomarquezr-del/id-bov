@@ -10,10 +10,12 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
-  <!-- Firebase (nuvem) — mesmo projeto do Colaborador Eficiente -->
+  <!-- Firebase (nuvem) — projeto próprio id-bov -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <!-- SheetJS — exportação em Excel (.xlsx) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
 
@@ -166,7 +168,7 @@
   <div id="resumo" style="display:flex;gap:8px;margin:14px 0 0;flex-wrap:wrap"></div>
   <div class="list-header">Animais cadastrados</div>
   <div id="lista"></div>
-  <button id="btnExportar" class="btn-claro" style="display:none" onclick="exportarCSV()">⬇️ Exportar lista (CSV / Excel)</button>
+  <button id="btnExportar" class="btn-claro" style="display:none" onclick="exportarExcel()">📊 Exportar planilha (Excel)</button>
 </div>
 
 <!-- ══ TELA: ASSISTENTE DE CADASTRO ══ -->
@@ -283,6 +285,58 @@ function exportarCSV(){
   const url=URL.createObjectURL(blob);
   const el=document.createElement('a'); el.href=url; el.download='id-bov-rebanho.csv'; el.click();
   setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+// Exporta planilha Excel (.xlsx) com os dados em LINGUAGEM NATURAL:
+// aba "Rebanho" (uma linha por animal) + aba "Resumo" (totais prontos).
+// Pensada para abrir em qualquer plataforma (Excel, Google Planilhas...)
+// e para leitura futura por sistemas de IA.
+function exportarExcel(){
+  if(typeof XLSX==='undefined'){
+    // Biblioteca não carregou (1ª visita sem internet): exporta CSV, que também abre no Excel
+    exportarCSV();
+    toast('📴 Sem internet: exportei em CSV (também abre no Excel)', 5000);
+    return;
+  }
+  const wb = XLSX.utils.book_new();
+
+  // ── Aba 1: Rebanho — uma linha por animal, valores por extenso ──
+  const linhas = [...rebanho].sort((a,b)=>a.data-b.data).map(a=>({
+    'Brinco':           a.brinco,
+    'Sexo':             labelSexo(a.sexo),
+    'Raça':             a.raca,
+    'Idade (categoria)':labelIdade(a.idade),
+    'Observação':       a.obs || '',
+    'Data de cadastro': new Date(a.data).toLocaleString('pt-BR')
+  }));
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  ws['!cols'] = [{wch:10},{wch:8},{wch:10},{wch:18},{wch:42},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Rebanho');
+
+  // ── Aba 2: Resumo — totais prontos para análise ──
+  const conta = f => rebanho.filter(f).length;
+  const resumo = [
+    ['RESUMO DO REBANHO', ''],
+    ['Total de animais', rebanho.length],
+    ['Machos',  conta(a=>a.sexo==='M')],
+    ['Fêmeas',  conta(a=>a.sexo==='F')],
+    ['', ''],
+    ['POR RAÇA', ''],
+    ['Nelore',  conta(a=>a.raca==='Nelore')],
+    ['Cruzado', conta(a=>a.raca==='Cruzado')],
+    ['', ''],
+    ['POR FAIXA DE IDADE', ''],
+    ...IDADES.map(i=>[i.l, conta(a=>a.idade===i.v)]),
+    ['', ''],
+    ['Gerado pelo ID-Bov em', new Date().toLocaleString('pt-BR')]
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(resumo);
+  ws2['!cols'] = [{wch:24},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Resumo');
+
+  const nome = 'id-bov-rebanho-'+new Date().toISOString().slice(0,10)+'.xlsx';
+  XLSX.writeFile(wb, nome);
+  toast('📊 Planilha exportada: '+nome, 4000);
 }
 
 // ── Assistente passo a passo ──

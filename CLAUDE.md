@@ -27,7 +27,21 @@ pensado para uso no curral com tela grande e botões enormes.
 5. **Observação** — pergunta Sim/Não; "Não" salva e volta direto ao teclado do
    próximo animal; "Sim" abre campo de texto.
 
-Tela inicial: lista do rebanho, contadores (total/♂/♀), excluir, exportar CSV.
+Tela inicial: lista do rebanho, contadores (total/♂/♀), excluir, exportar.
+
+## Exportação (v5)
+
+- **Excel (.xlsx)** via SheetJS (CDN cdnjs, cacheado pelo SW p/ offline):
+  `exportarExcel()` gera aba **"Rebanho"** (uma linha por animal — Brinco,
+  Sexo, Raça, Idade (categoria), Observação, Data de cadastro) + aba
+  **"Resumo"** (totais por sexo/raça/faixa de idade).
+- **Decisão do usuário:** valores sempre em LINGUAGEM NATURAL ("Macho",
+  "13 a 24 meses"), nunca códigos — para abrir em qualquer plataforma e
+  para leitura futura por sistemas de IA.
+- Sem internet na 1ª visita (XLSX indefinido): cai no `exportarCSV()`
+  (CSV ; separado, BOM UTF-8) com aviso ao usuário.
+- SW guarda respostas opacas dos CDNs (`CDN_HOSTS` no sw.js) — Firebase e
+  SheetJS funcionam offline após a primeira visita com internet.
 
 ## Dados
 
