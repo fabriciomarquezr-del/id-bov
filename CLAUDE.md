@@ -38,7 +38,8 @@ Tela inicial: lista do rebanho, contadores (total/♂/♀), excluir, exportar CS
 ## Deploy
 
 - **GitHub:** `git@github.com:fabriciomarquezr-del/id-bov.git` (branch: main)
-- **Cloudflare:** conectar em dash.cloudflare.com → Workers & Pages →
-  Connect to Git → id-bov (sem configuração de build; site estático).
+- **Cloudflare Workers:** `id-bov.fabriciomarquez-r.workers.dev` (conectado ao
+  GitHub, deploy automático; config em `wrangler.jsonc`, assets estáticos).
 - **Para publicar:** `git add . && git commit -m "mensagem" && git push`
-- **Sempre incrementar `CACHE = 'id-bov-vXX'` no sw.js ao publicar.**
+- **Sempre incrementar `CACHE = 'id-bov-vXX'` no sw.js ao publicar** para
+  limpar o cache dos aparelhos.
