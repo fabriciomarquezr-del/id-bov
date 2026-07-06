@@ -24,7 +24,9 @@ pensado para uso no curral com tela grande e botões enormes.
 2. **Sexo** — Macho / Fêmea (toque avança sozinho).
 3. **Raça** — Nelore / Cruzado.
 4. **Idade** — 0-4, 5-12, 13-24, 25-36, +36 meses.
-5. **Observação** — pergunta Sim/Não; "Não" salva e volta direto ao teclado do
+5. **Peso (kg)** — teclado numérico igual ao do brinco (máx 4 dígitos, sem zero
+   à esquerda); botão "Sem balança — pular" (peso fica `null`). Campo `peso`.
+6. **Observação** — pergunta Sim/Não; "Não" salva e volta direto ao teclado do
    próximo animal; "Sim" abre campo de texto.
 
 Tela inicial: lista do rebanho, contadores (total/♂/♀), excluir, exportar.

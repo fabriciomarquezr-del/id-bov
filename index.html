@@ -208,7 +208,7 @@ const IDADES = [
   {v:'25-36', l:'25 a 36 meses'},
   {v:'36+',   l:'Acima de 36 meses'}
 ];
-const PASSOS = ['brinco','sexo','raca','idade','obs'];
+const PASSOS = ['brinco','sexo','raca','idade','peso','obs'];
 
 // ── Persistência ──
 function carregar(){ try{ rebanho = JSON.parse(localStorage.getItem(DB_KEY)) || []; }catch(e){ rebanho=[]; } }
@@ -256,7 +256,7 @@ function renderHome(){
       <div class="animal-sexo" style="background:${a.sexo==='F'?'rgba(221,82,55,.10)':'var(--green-light)'};color:${a.sexo==='F'?'var(--red)':'var(--green-2)'}">${a.sexo==='F'?'♀':'♂'}</div>
       <div style="flex:1;min-width:0">
         <div class="mono" style="font-weight:700;font-size:1.2rem;color:var(--green-deep)">${a.brinco}</div>
-        <div style="font-size:0.78rem;color:var(--text-2);font-weight:600">${labelSexo(a.sexo)} · ${a.raca} · ${labelIdade(a.idade)}</div>
+        <div style="font-size:0.78rem;color:var(--text-2);font-weight:600">${labelSexo(a.sexo)} · ${a.raca} · ${labelIdade(a.idade)}${a.peso?` · ⚖️ ${a.peso} kg`:''}</div>
         ${a.obs?`<div style="font-size:0.76rem;color:var(--text-3);margin-top:2px">📝 ${escaparHTML(a.obs)}</div>`:''}
       </div>
       <button onclick="excluir(${a.id})" style="flex:none;background:var(--red-light);border:none;color:var(--red);border-radius:10px;width:40px;height:40px;cursor:pointer;font-size:1.05rem">✕</button>
@@ -276,9 +276,9 @@ function excluir(id){
 }
 
 function exportarCSV(){
-  const linhas=[['Brinco','Sexo','Raca','Idade','Observacao','Data']];
+  const linhas=[['Brinco','Sexo','Raca','Idade','Peso (kg)','Observacao','Data']];
   [...rebanho].sort((a,b)=>a.data-b.data).forEach(a=>{
-    linhas.push([a.brinco, labelSexo(a.sexo), a.raca, labelIdade(a.idade), (a.obs||'').replace(/[\r\n]+/g,' '), new Date(a.data).toLocaleString('pt-BR')]);
+    linhas.push([a.brinco, labelSexo(a.sexo), a.raca, labelIdade(a.idade), a.peso||'', (a.obs||'').replace(/[\r\n]+/g,' '), new Date(a.data).toLocaleString('pt-BR')]);
   });
   const csv='﻿'+linhas.map(l=>l.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
@@ -306,11 +306,12 @@ function exportarExcel(){
     'Sexo':             labelSexo(a.sexo),
     'Raça':             a.raca,
     'Idade (categoria)':labelIdade(a.idade),
+    'Peso (kg)':        a.peso || '',
     'Observação':       a.obs || '',
     'Data de cadastro': new Date(a.data).toLocaleString('pt-BR')
   }));
   const ws = XLSX.utils.json_to_sheet(linhas);
-  ws['!cols'] = [{wch:10},{wch:8},{wch:10},{wch:18},{wch:42},{wch:18}];
+  ws['!cols'] = [{wch:10},{wch:8},{wch:10},{wch:18},{wch:10},{wch:42},{wch:18}];
   XLSX.utils.book_append_sheet(wb, ws, 'Rebanho');
 
   // ── Aba 2: Resumo — totais prontos para análise ──
@@ -320,6 +321,8 @@ function exportarExcel(){
     ['Total de animais', rebanho.length],
     ['Machos',  conta(a=>a.sexo==='M')],
     ['Fêmeas',  conta(a=>a.sexo==='F')],
+    ['Animais pesados', conta(a=>a.peso)],
+    ['Peso médio (kg)', (function(){ const ps=rebanho.filter(a=>a.peso); return ps.length ? Math.round(ps.reduce((s,a)=>s+a.peso,0)/ps.length) : '—'; })()],
     ['', ''],
     ['POR RAÇA', ''],
     ['Nelore',  conta(a=>a.raca==='Nelore')],
@@ -341,7 +344,7 @@ function exportarExcel(){
 
 // ── Assistente passo a passo ──
 function novoAnimal(){
-  w={ brinco:'', sexo:'', raca:'', idade:'', passo:0 };
+  w={ brinco:'', sexo:'', raca:'', idade:'', peso:'', passo:0 };
   document.getElementById('telaHome').classList.remove('ativa');
   document.getElementById('telaCad').classList.add('ativa');
   renderPasso();
@@ -368,6 +371,7 @@ function renderSteps(){
   if(w.sexo)   partes.push(`<span class="chip">${labelSexo(w.sexo)}</span>`);
   if(w.raca)   partes.push(`<span class="chip">${w.raca}</span>`);
   if(w.idade)  partes.push(`<span class="chip">${w.idade==='36+'?'+36m':w.idade+'m'}</span>`);
+  if(w.peso)   partes.push(`<span class="chip">${w.peso} kg</span>`);
   document.getElementById('resumoWiz').innerHTML=partes.join(' ');
 }
 
@@ -375,7 +379,7 @@ function renderPasso(){
   renderSteps();
   const passo=PASSOS[w.passo];
   const body=document.getElementById('wizBody');
-  const titulos={brinco:'Número do brinco',sexo:'Sexo do animal',raca:'Raça',idade:'Idade',obs:'Observação'};
+  const titulos={brinco:'Número do brinco',sexo:'Sexo do animal',raca:'Raça',idade:'Idade',peso:'Peso do animal',obs:'Observação'};
   document.getElementById('wizTitulo').textContent=titulos[passo];
 
   if(passo==='brinco'){
@@ -417,6 +421,19 @@ function renderPasso(){
         ${IDADES.map(i=>`<button class="opt g" style="font-size:1.15rem;padding:18px 12px" onclick="escolher('idade','${i.v}')">${i.l}</button>`).join('')}
       </div>`;
   }
+  else if(passo==='peso'){
+    const vazio=!w.peso;
+    body.innerHTML=`
+      <div class="hint">Digite o peso do animal (kg)</div>
+      <div class="visor ${vazio?'vazio':''}" id="pesoVisor">${vazio?'—':w.peso+' kg'}</div>
+      <div style="text-align:center;margin-top:10px"><button onclick="pularPeso()" style="background:rgba(20,38,26,.06);border:1px solid var(--border);color:var(--text-2);border-radius:999px;padding:9px 18px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit">Sem balança — pular este passo</button></div>
+      <div class="keys">
+        ${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="key" onclick="pesoDigito('${n}')">${n}</button>`).join('')}
+        <button class="key del" onclick="pesoApagar()">⌫</button>
+        <button class="key" onclick="pesoDigito('0')">0</button>
+        <button class="key ok" id="pesoKeyOk" onclick="confirmarPeso()" ${vazio?'disabled':''}>✓</button>
+      </div>`;
+  }
   else if(passo==='obs'){
     body.innerHTML=`
       <div class="hint">Quer adicionar uma observação?</div>
@@ -455,6 +472,25 @@ function atualizarDup(){
 }
 function confirmarBrinco(){ if(w.brinco){ w.passo=1; renderPasso(); } }
 
+// Teclado do peso (kg)
+function pesoDigito(d){
+  if(w.peso.length>=4) return;                 // máx 9999 kg
+  if(w.peso==='' && d==='0') return;           // não começa com zero
+  w.peso+=d;
+  const v=document.getElementById('pesoVisor');
+  v.textContent=w.peso+' kg'; v.classList.remove('vazio');
+  document.getElementById('pesoKeyOk').disabled=false;
+}
+function pesoApagar(){
+  w.peso=w.peso.slice(0,-1);
+  const v=document.getElementById('pesoVisor');
+  v.textContent=w.peso?w.peso+' kg':'—';
+  if(!w.peso) v.classList.add('vazio');
+  document.getElementById('pesoKeyOk').disabled=!w.peso;
+}
+function confirmarPeso(){ if(w.peso){ w.passo++; renderPasso(); } }
+function pularPeso(){ w.peso=''; w.passo++; renderPasso(); }
+
 // Escolha com avanço automático para o próximo passo
 function escolher(campo,valor){ w[campo]=valor; w.passo++; renderPasso(); }
 function mostrarObs(){
@@ -467,12 +503,13 @@ function salvarAnimal(){
   const campo=document.getElementById('obsTexto');
   rebanho.push({
     id:Date.now(), brinco:w.brinco, sexo:w.sexo, raca:w.raca, idade:w.idade,
+    peso:w.peso?parseInt(w.peso,10):null,
     obs:campo?campo.value.trim():'', data:Date.now()
   });
   salvar();
   toast('✓ Animal '+w.brinco+' cadastrado');
   // Vai direto para o próximo animal (assistente limpo)
-  w={ brinco:'', sexo:'', raca:'', idade:'', passo:0 };
+  w={ brinco:'', sexo:'', raca:'', idade:'', peso:'', passo:0 };
   renderPasso();
   window.scrollTo(0,0);
 }
@@ -551,7 +588,7 @@ async function empurrarNuvem(){
   if(!_db || !_uid || !_nuvemOk) return;
   try{
     await docNuvem().set({
-      rebanho: rebanho.map(a=>({id:a.id,brinco:a.brinco,sexo:a.sexo,raca:a.raca,idade:a.idade,obs:a.obs||'',data:a.data})),
+      rebanho: rebanho.map(a=>({id:a.id,brinco:a.brinco,sexo:a.sexo,raca:a.raca,idade:a.idade,peso:a.peso||null,obs:a.obs||'',data:a.data})),
       excluidos: excluidos.slice(-500),
       email: _email,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
