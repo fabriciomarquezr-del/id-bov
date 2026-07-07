@@ -45,6 +45,10 @@ lista de animais (com filtro por manejo), excluir, exportar/importar.
 - Manejo vai para: nuvem (payload + união por id na mesclagem), cofre IDB,
   Excel (coluna "Manejo" + seção POR MANEJO no Resumo), CSV e importação
   (coluna Manejo reaproveita por nome ou cria).
+- Importação (v10): brinco que JÁ existe não duplica, mas ENTRA no manejo da
+  planilha se ainda não tiver um (caso real: 4 dos 61 já existiam e ficaram
+  fora do manejo — reimportar o mesmo arquivo resolve). Nunca move animal que
+  já está em outro manejo.
 
 ## Pesagens (histórico de peso — v7)
 

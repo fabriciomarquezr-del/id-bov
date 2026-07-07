@@ -625,12 +625,29 @@ async function importarPlanilha(files){
     const wb = XLSX.read(buf, {type:'array'});
     const nomeAba = wb.SheetNames.includes('Rebanho') ? 'Rebanho' : wb.SheetNames[0];
     const linhas = XLSX.utils.sheet_to_json(wb.Sheets[nomeAba], {defval:''});
-    let novos=0, repetidos=0, ignorados=0;
+    let novos=0, repetidos=0, ignorados=0, movidos=0;
     const base=Date.now();
+    // Reaproveita o manejo com o mesmo nome ou cria um novo
+    let _seqManejo=0;
+    const manejoPorNome=(nome, dataRef)=>{
+      nome=String(nome||'').trim(); if(!nome) return null;
+      let m=manejos.find(x=>x.nome===nome);
+      if(!m){ m={id:base+900000+(_seqManejo++), nome, data:dataRef||base}; manejos.push(m); }
+      return m.id;
+    };
     linhas.forEach((l,i)=>{
       const brinco = String(l['Brinco'] ?? l['brinco'] ?? '').trim();
       if(!brinco){ ignorados++; return; }
-      if(rebanho.some(a=>a.brinco===brinco)){ repetidos++; return; }
+      const data = parseDataPlanilha(l['Data de cadastro']) || base;
+      const manejoId = manejoPorNome(l['Manejo'], data);
+      const existente = rebanho.find(a=>a.brinco===brinco);
+      if(existente){
+        // Já existe: não duplica, mas entra no manejo da planilha se ainda não tiver um
+        const semManejo = !existente.manejoId || !manejos.some(m=>m.id===existente.manejoId);
+        if(manejoId && semManejo){ existente.manejoId=manejoId; movidos++; }
+        repetidos++;
+        return;
+      }
       const sexoTxt = String(l['Sexo'] ?? '').trim().toLowerCase();
       const sexo = sexoTxt.startsWith('m') ? 'M' : (sexoTxt.startsWith('f') ? 'F' : null);
       if(!sexo){ ignorados++; return; }
@@ -639,15 +656,6 @@ async function importarPlanilha(files){
       const idadeObj = IDADES.find(x=>x.l===idadeTxt || x.v===idadeTxt);
       const idade = idadeObj ? idadeObj.v : '';
       const peso = parseInt(l['Peso atual (kg)'] ?? l['Peso (kg)'] ?? '', 10) || null;
-      const data = parseDataPlanilha(l['Data de cadastro']) || base;
-      // Coluna Manejo: reaproveita o manejo com o mesmo nome ou cria um novo
-      let manejoId = null;
-      const nomeM = String(l['Manejo'] ?? '').trim();
-      if(nomeM){
-        let m = manejos.find(x=>x.nome===nomeM);
-        if(!m){ m={id:base+900000+i, nome:nomeM, data}; manejos.push(m); }
-        manejoId = m.id;
-      }
       rebanho.push({
         id: base+i, brinco, sexo, raca, idade, peso,
         pesagens: peso ? [{peso, data}] : [],
@@ -671,7 +679,7 @@ async function importarPlanilha(files){
     normalizarRebanho();
     salvarManejos();
     salvar(); renderHome();
-    toast(`📥 ${novos} animais importados` + (repetidos?` · ${repetidos} já existiam`:'') + (ignorados?` · ${ignorados} linhas ignoradas`:''), 7000);
+    toast(`📥 ${novos} animais importados` + (movidos?` · ${movidos} que já existiam entraram no manejo`:'') + (repetidos && !movidos?` · ${repetidos} já existiam`:'') + (ignorados?` · ${ignorados} linhas ignoradas`:''), 7000);
   }catch(e){
     console.error('importarPlanilha:', e);
     toast('⚠️ Não consegui ler esta planilha. Use o arquivo exportado pelo ID-Bov (.xlsx)', 6000);
