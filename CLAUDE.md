@@ -29,7 +29,22 @@ pensado para uso no curral com tela grande e botões enormes.
 6. **Observação** — pergunta Sim/Não; "Não" salva e volta direto ao teclado do
    próximo animal; "Sim" abre campo de texto.
 
-Tela inicial: lista do rebanho, contadores (total/♂/♀), excluir, exportar.
+Tela inicial: contadores (total/♂/♀) + alternador **Animais | Manejos**;
+lista de animais (com filtro por manejo), excluir, exportar/importar.
+
+## Manejos (sessões de trabalho — v9)
+
+- `manejos=[{id,nome,data}]` (localStorage `idbov-manejos-v1`; ativo em
+  `idbov-manejo-atual-v1`); animal ganha `manejoId`.
+- Todo cadastro entra no manejo ATIVO — `garantirManejoAtual()` cria
+  "Manejo DD/MM/AAAA" sozinho se não houver (sem interromper o fluxo);
+  o assistente mostra o manejo como chip dourado.
+- Aba Manejos: "Iniciar novo manejo" (prompt de nome), cards com contagem
+  ♂/♀, badge ATIVO, ações "Ver animais" (filtra a aba Animais),
+  "Usar neste" (troca o ativo) e renomear. Grupo "Sem manejo" p/ antigos.
+- Manejo vai para: nuvem (payload + união por id na mesclagem), cofre IDB,
+  Excel (coluna "Manejo" + seção POR MANEJO no Resumo), CSV e importação
+  (coluna Manejo reaproveita por nome ou cria).
 
 ## Pesagens (histórico de peso — v7)
 

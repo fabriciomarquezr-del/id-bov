@@ -147,6 +147,12 @@
     /* ── Pesagem: teclado compacto dentro do modal ── */
     .keys.compacto{gap:8px;margin-top:10px}
     .keys.compacto .key{height:54px;font-size:1.45rem;border-radius:12px}
+
+    /* ── Alternador Animais | Manejos ── */
+    .pill-tab{flex:1;border:none;background:transparent;color:var(--text-2);font-family:'Manrope',sans-serif;
+      font-weight:800;font-size:0.9rem;padding:10px;border-radius:11px;cursor:pointer;
+      -webkit-tap-highlight-color:transparent}
+    .pill-tab.ativa{background:#fff;color:var(--green-deep);box-shadow:var(--shadow-sm)}
   </style>
 </head>
 <body>
@@ -171,11 +177,29 @@
   </button>
   <div id="resumo" style="display:flex;gap:8px;margin:14px 0 0;flex-wrap:wrap"></div>
   <div id="syncInfo" style="font-size:0.78rem;font-weight:700;margin-top:10px;min-height:18px;color:var(--text-2)"></div>
-  <div class="list-header">Animais cadastrados</div>
-  <div id="lista"></div>
-  <button id="btnExportar" class="btn-claro" style="display:none" onclick="exportarExcel()">📊 Exportar planilha (Excel)</button>
-  <button class="btn-claro" onclick="document.getElementById('importInput').click()">📥 Importar planilha (recuperar dados)</button>
-  <input type="file" id="importInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarPlanilha(this.files)">
+
+  <!-- Alternador Animais | Manejos -->
+  <div style="display:flex;background:rgba(18,38,26,.08);border-radius:14px;padding:4px;margin-top:14px;gap:4px">
+    <button class="pill-tab ativa" id="tabAnimais" onclick="mudarAbaHome('animais')">Animais</button>
+    <button class="pill-tab" id="tabManejos" onclick="mudarAbaHome('manejos')">Manejos</button>
+  </div>
+
+  <!-- Painel: Animais -->
+  <div id="painelAnimais">
+    <div id="filtroBar" style="margin-top:12px"></div>
+    <div class="list-header">Animais cadastrados</div>
+    <div id="lista"></div>
+    <button id="btnExportar" class="btn-claro" style="display:none" onclick="exportarExcel()">📊 Exportar planilha (Excel)</button>
+    <button class="btn-claro" onclick="document.getElementById('importInput').click()">📥 Importar planilha (recuperar dados)</button>
+    <input type="file" id="importInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarPlanilha(this.files)">
+  </div>
+
+  <!-- Painel: Manejos -->
+  <div id="painelManejos" style="display:none">
+    <button class="btn-claro" style="border-color:rgba(27,122,61,.45);background:var(--green-light);color:var(--green-2);font-weight:800" onclick="novoManejo()">➕ Iniciar novo manejo</button>
+    <div class="list-header">Manejos</div>
+    <div id="manejosLista"></div>
+  </div>
 </div>
 
 <!-- ══ TELA: ASSISTENTE DE CADASTRO ══ -->
@@ -259,7 +283,7 @@ async function salvarCofre(){
   try{
     const db=await _abrirIDB(); if(!db) return;
     db.transaction(IDB_STORE,'readwrite').objectStore(IDB_STORE)
-      .put(JSON.parse(JSON.stringify({rebanho, excluidos, quando:Date.now()})),'backup');
+      .put(JSON.parse(JSON.stringify({rebanho, excluidos, manejos, quando:Date.now()})),'backup');
   }catch(e){}
 }
 async function lerCofre(){
@@ -292,6 +316,9 @@ async function recuperarDoCofre(){
     });
     rebanho=Object.values(porId).filter(a=>!excTot.includes(a.id)).sort((a,b)=>a.data-b.data);
     excluidos=excTot;
+    // Recupera também os manejos que só existirem no cofre
+    (cofre.manejos||[]).forEach(m=>{ if(!manejos.some(x=>x.id===m.id)) manejos.push(m); });
+    salvarManejos();
     normalizarRebanho();
     if(rebanho.length>antes){
       salvarExcluidos(); salvar(); renderHome();
@@ -310,6 +337,66 @@ function normalizarRebanho(){
   });
 }
 function salvar(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(rebanho)); }catch(e){} salvarCofre(); agendarSync(); }
+
+// ══════════════════════════════════════════════
+//  MANEJOS — sessões de trabalho (ex.: "Desmama", "Vacinação lote 2")
+//  Cada animal cadastrado entra no manejo ATIVO do momento.
+// ══════════════════════════════════════════════
+const MAN_KEY='idbov-manejos-v1', MAN_ATUAL_KEY='idbov-manejo-atual-v1';
+let manejos = [];            // [{id, nome, data}]
+let manejoAtualId = null;    // manejo que recebe os novos cadastros
+let filtroManejoId = null;   // filtro da lista de animais (null = todos, 'sem' = sem manejo)
+let abaHome = 'animais';
+
+function carregarManejos(){
+  try{ manejos = JSON.parse(localStorage.getItem(MAN_KEY)) || []; }catch(e){ manejos=[]; }
+  try{ manejoAtualId = JSON.parse(localStorage.getItem(MAN_ATUAL_KEY)); }catch(e){ manejoAtualId=null; }
+  if(!manejos.some(m=>m.id===manejoAtualId)) manejoAtualId = manejos.length ? manejos[manejos.length-1].id : null;
+}
+function salvarManejos(){
+  try{ localStorage.setItem(MAN_KEY, JSON.stringify(manejos)); }catch(e){}
+  try{ localStorage.setItem(MAN_ATUAL_KEY, JSON.stringify(manejoAtualId)); }catch(e){}
+}
+function nomeManejo(id){ const m=manejos.find(x=>x.id===id); return m?m.nome:''; }
+function animaisDoManejo(id){
+  if(id==='sem') return rebanho.filter(a=>!a.manejoId || !manejos.some(m=>m.id===a.manejoId));
+  return rebanho.filter(a=>a.manejoId===id);
+}
+// Garante que existe um manejo ativo (cria um com a data de hoje se preciso)
+function garantirManejoAtual(){
+  if(manejoAtualId && manejos.some(m=>m.id===manejoAtualId)) return manejoAtualId;
+  const m={id:Date.now(), nome:'Manejo '+new Date().toLocaleDateString('pt-BR'), data:Date.now()};
+  manejos.push(m); manejoAtualId=m.id;
+  salvarManejos(); salvar();
+  return m.id;
+}
+function novoManejo(){
+  const sug='Manejo '+new Date().toLocaleDateString('pt-BR');
+  const nome=prompt('Nome do manejo (ex.: Desmama, Vacinação, Lote 3):', sug);
+  if(nome===null) return;
+  const m={id:Date.now(), nome:(nome.trim()||sug), data:Date.now()};
+  manejos.push(m); manejoAtualId=m.id;
+  salvarManejos(); salvar();
+  filtroManejoId=null; abaHome='animais';
+  renderHome();
+  toast('📋 Manejo "'+m.nome+'" iniciado — os próximos cadastros entram nele', 5000);
+}
+function usarManejo(id){
+  manejoAtualId=id; salvarManejos(); renderHome();
+  toast('📋 Cadastros novos vão para "'+nomeManejo(id)+'"');
+}
+function renomearManejo(id){
+  const m=manejos.find(x=>x.id===id); if(!m) return;
+  const nome=prompt('Novo nome do manejo:', m.nome);
+  if(nome===null || !nome.trim()) return;
+  m.nome=nome.trim();
+  salvarManejos(); salvar(); renderHome();
+}
+function verManejo(id){
+  filtroManejoId=id; abaHome='animais'; renderHome();
+}
+function limparFiltroManejo(){ filtroManejoId=null; renderHome(); }
+function mudarAbaHome(aba){ abaHome=aba; renderHome(); }
 
 function labelIdade(v){ const o=IDADES.find(i=>i.v===v); return o?o.l:v; }
 function labelSexo(v){ return v==='M'?'Macho':(v==='F'?'Fêmea':''); }
@@ -342,24 +429,79 @@ function renderHome(){
     <span class="chip">Total: ${rebanho.length}</span>
     <span class="chip">♂ ${machos}</span>
     <span class="chip">♀ ${femeas}</span>` : '';
-  document.getElementById('btnExportar').style.display = rebanho.length?'block':'none';
   atualizarDotNuvem();
+
+  // Alternador
+  document.getElementById('tabAnimais').className = 'pill-tab'+(abaHome==='animais'?' ativa':'');
+  document.getElementById('tabManejos').className = 'pill-tab'+(abaHome==='manejos'?' ativa':'');
+  document.getElementById('tabAnimais').textContent = 'Animais'+(rebanho.length?` · ${rebanho.length}`:'');
+  document.getElementById('tabManejos').textContent = 'Manejos'+(manejos.length?` · ${manejos.length}`:'');
+  document.getElementById('painelAnimais').style.display = abaHome==='animais'?'block':'none';
+  document.getElementById('painelManejos').style.display = abaHome==='manejos'?'block':'none';
+
+  if(abaHome==='manejos'){ renderManejos(); return; }
+
+  // ── Painel Animais ──
+  const filtrados = filtroManejoId===null ? rebanho : animaisDoManejo(filtroManejoId);
+  document.getElementById('filtroBar').innerHTML = filtroManejoId===null ? '' : `
+    <span class="chip" style="background:var(--gold-light);border-color:rgba(216,165,33,.4);color:var(--gold-dark)">
+      📋 ${escaparHTML(filtroManejoId==='sem'?'Sem manejo':nomeManejo(filtroManejoId))} · ${filtrados.length}
+      <button onclick="limparFiltroManejo()" style="background:none;border:none;cursor:pointer;font-weight:800;color:inherit;font-size:0.9rem;padding:0 0 0 4px">✕</button>
+    </span>`;
+  document.getElementById('btnExportar').style.display = rebanho.length?'block':'none';
   const lista=document.getElementById('lista');
-  if(!rebanho.length){
-    lista.innerHTML=`<div class="empty">Nenhum animal cadastrado ainda.<br>Toque em <b>"Cadastrar animal"</b> para começar.</div>`;
+  if(!filtrados.length){
+    lista.innerHTML=`<div class="empty">${rebanho.length?'Nenhum animal neste manejo ainda.':'Nenhum animal cadastrado ainda.<br>Toque em <b>"Cadastrar animal"</b> para começar.'}</div>`;
     return;
   }
-  lista.innerHTML=[...rebanho].sort((a,b)=>b.data-a.data).map(a=>`
+  lista.innerHTML=[...filtrados].sort((a,b)=>b.data-a.data).map(a=>`
     <div class="animal-card">
       <div class="animal-sexo" style="background:${a.sexo==='F'?'rgba(221,82,55,.10)':'var(--green-light)'};color:${a.sexo==='F'?'var(--red)':'var(--green-2)'}">${a.sexo==='F'?'♀':'♂'}</div>
       <div style="flex:1;min-width:0">
         <div class="mono" style="font-weight:700;font-size:1.2rem;color:var(--green-deep)">${a.brinco}</div>
         <div style="font-size:0.78rem;color:var(--text-2);font-weight:600">${labelSexo(a.sexo)} · ${a.raca} · ${labelIdade(a.idade)}${a.peso?` · ⚖️ ${a.peso} kg`:''}</div>
+        ${filtroManejoId===null && a.manejoId && nomeManejo(a.manejoId)?`<div style="font-size:0.72rem;color:var(--text-3);margin-top:2px">📋 ${escaparHTML(nomeManejo(a.manejoId))}</div>`:''}
         ${a.obs?`<div style="font-size:0.76rem;color:var(--text-3);margin-top:2px">📝 ${escaparHTML(a.obs)}</div>`:''}
       </div>
       <button onclick="abrirPesagem(${a.id})" title="Nova pesagem" style="flex:none;background:var(--green-light);border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;font-size:1.05rem">⚖️</button>
       <button onclick="excluir(${a.id})" style="flex:none;background:var(--red-light);border:none;color:var(--red);border-radius:10px;width:40px;height:40px;cursor:pointer;font-size:1.05rem">✕</button>
     </div>`).join('');
+}
+
+function renderManejos(){
+  const el=document.getElementById('manejosLista');
+  const semManejo=animaisDoManejo('sem');
+  const cards=[];
+  [...manejos].sort((a,b)=>b.data-a.data).forEach(m=>{
+    const bichos=animaisDoManejo(m.id);
+    const ativo=m.id===manejoAtualId;
+    cards.push(`
+    <div style="background:#fff;border:1.5px solid ${ativo?'rgba(27,122,61,.5)':'var(--border)'};border-radius:14px;padding:13px 14px;margin-bottom:9px;box-shadow:var(--shadow-sm)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:0.98rem;color:var(--green-deep)">📋 ${escaparHTML(m.nome)}
+            ${ativo?'<span style="background:var(--green);color:#fff;font-size:0.62rem;font-weight:800;border-radius:999px;padding:2px 8px;margin-left:5px;vertical-align:2px">ATIVO</span>':''}
+          </div>
+          <div style="font-size:0.75rem;color:var(--text-3);margin-top:2px">${new Date(m.data).toLocaleDateString('pt-BR')} · ${bichos.length} ${bichos.length===1?'animal':'animais'} · ♂ ${bichos.filter(a=>a.sexo==='M').length} · ♀ ${bichos.filter(a=>a.sexo==='F').length}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:7px;margin-top:10px">
+        <button onclick="verManejo(${m.id})" style="flex:1;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:700;font-size:0.78rem;padding:8px;border-radius:9px;cursor:pointer;font-family:inherit">Ver animais</button>
+        ${ativo?'':`<button onclick="usarManejo(${m.id})" style="flex:1;border:1px solid rgba(27,122,61,.4);background:var(--green-light);color:var(--green-2);font-weight:700;font-size:0.78rem;padding:8px;border-radius:9px;cursor:pointer;font-family:inherit">Usar neste</button>`}
+        <button onclick="renomearManejo(${m.id})" style="flex:none;border:1px solid var(--border);background:#fff;color:var(--text-2);font-weight:700;font-size:0.78rem;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit">✏️</button>
+      </div>
+    </div>`);
+  });
+  if(semManejo.length){
+    cards.push(`
+    <div style="background:rgba(18,38,26,.04);border:1.5px dashed var(--border);border-radius:14px;padding:13px 14px;margin-bottom:9px">
+      <div style="font-weight:800;font-size:0.92rem;color:var(--text-2)">Sem manejo (cadastros antigos)</div>
+      <div style="font-size:0.75rem;color:var(--text-3);margin-top:2px">${semManejo.length} ${semManejo.length===1?'animal':'animais'}</div>
+      <button onclick="verManejo('sem')" style="margin-top:10px;width:100%;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:700;font-size:0.78rem;padding:8px;border-radius:9px;cursor:pointer;font-family:inherit">Ver animais</button>
+    </div>`);
+  }
+  el.innerHTML = cards.length ? cards.join('') :
+    `<div class="empty">Nenhum manejo ainda.<br>Toque em <b>"Iniciar novo manejo"</b> — ou simplesmente cadastre um animal, que o manejo de hoje é criado sozinho.</div>`;
 }
 function escaparHTML(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -375,9 +517,9 @@ function excluir(id){
 }
 
 function exportarCSV(){
-  const linhas=[['Brinco','Sexo','Raca','Idade','Peso (kg)','Observacao','Data']];
+  const linhas=[['Brinco','Sexo','Raca','Idade','Peso (kg)','Manejo','Observacao','Data']];
   [...rebanho].sort((a,b)=>a.data-b.data).forEach(a=>{
-    linhas.push([a.brinco, labelSexo(a.sexo), a.raca, labelIdade(a.idade), a.peso||'', (a.obs||'').replace(/[\r\n]+/g,' '), new Date(a.data).toLocaleString('pt-BR')]);
+    linhas.push([a.brinco, labelSexo(a.sexo), a.raca, labelIdade(a.idade), a.peso||'', nomeManejo(a.manejoId)||'', (a.obs||'').replace(/[\r\n]+/g,' '), new Date(a.data).toLocaleString('pt-BR')]);
   });
   const csv='﻿'+linhas.map(l=>l.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
@@ -406,11 +548,12 @@ function exportarExcel(){
     'Raça':             a.raca,
     'Idade (categoria)':labelIdade(a.idade),
     'Peso atual (kg)':  a.peso || '',
+    'Manejo':           nomeManejo(a.manejoId) || '',
     'Observação':       a.obs || '',
     'Data de cadastro': new Date(a.data).toLocaleString('pt-BR')
   }));
   const ws = XLSX.utils.json_to_sheet(linhas);
-  ws['!cols'] = [{wch:10},{wch:8},{wch:10},{wch:18},{wch:14},{wch:42},{wch:18}];
+  ws['!cols'] = [{wch:10},{wch:8},{wch:10},{wch:18},{wch:14},{wch:22},{wch:42},{wch:18}];
   XLSX.utils.book_append_sheet(wb, ws, 'Rebanho');
 
   // ── Aba "Pesagens" — evolução de peso: uma linha por pesagem ──
@@ -447,6 +590,10 @@ function exportarExcel(){
     ['', ''],
     ['POR FAIXA DE IDADE', ''],
     ...IDADES.map(i=>[i.l, conta(a=>a.idade===i.v)]),
+    ['', ''],
+    ['POR MANEJO', ''],
+    ...manejos.map(m=>[m.nome, conta(a=>a.manejoId===m.id)]),
+    ...(conta(a=>!a.manejoId||!manejos.some(m=>m.id===a.manejoId)) ? [['Sem manejo', conta(a=>!a.manejoId||!manejos.some(m=>m.id===a.manejoId))]] : []),
     ['', ''],
     ['Gerado pelo ID-Bov em', new Date().toLocaleString('pt-BR')]
   ];
@@ -493,9 +640,18 @@ async function importarPlanilha(files){
       const idade = idadeObj ? idadeObj.v : '';
       const peso = parseInt(l['Peso atual (kg)'] ?? l['Peso (kg)'] ?? '', 10) || null;
       const data = parseDataPlanilha(l['Data de cadastro']) || base;
+      // Coluna Manejo: reaproveita o manejo com o mesmo nome ou cria um novo
+      let manejoId = null;
+      const nomeM = String(l['Manejo'] ?? '').trim();
+      if(nomeM){
+        let m = manejos.find(x=>x.nome===nomeM);
+        if(!m){ m={id:base+900000+i, nome:nomeM, data}; manejos.push(m); }
+        manejoId = m.id;
+      }
       rebanho.push({
         id: base+i, brinco, sexo, raca, idade, peso,
         pesagens: peso ? [{peso, data}] : [],
+        manejoId,
         obs: String(l['Observação'] ?? l['Observacao'] ?? '').trim(),
         data
       });
@@ -513,6 +669,7 @@ async function importarPlanilha(files){
       });
     }
     normalizarRebanho();
+    salvarManejos();
     salvar(); renderHome();
     toast(`📥 ${novos} animais importados` + (repetidos?` · ${repetidos} já existiam`:'') + (ignorados?` · ${ignorados} linhas ignoradas`:''), 7000);
   }catch(e){
@@ -523,6 +680,7 @@ async function importarPlanilha(files){
 
 // ── Assistente passo a passo ──
 function novoAnimal(){
+  garantirManejoAtual();   // o manejo do dia já aparece no assistente
   w={ brinco:'', sexo:'', raca:'', idade:'', peso:'', passo:0 };
   document.getElementById('telaHome').classList.remove('ativa');
   document.getElementById('telaCad').classList.add('ativa');
@@ -546,6 +704,8 @@ function renderSteps(){
   document.getElementById('steps').innerHTML = PASSOS.map((_,i)=>
     `<div class="step-dot ${i<w.passo?'done':(i===w.passo?'on':'')}"></div>`).join('');
   const partes=[];
+  const nomeM=nomeManejo(manejoAtualId);
+  if(nomeM) partes.push(`<span class="chip" style="background:var(--gold-light);border-color:rgba(216,165,33,.4);color:var(--gold-dark)">📋 ${escaparHTML(nomeM)}</span>`);
   if(w.brinco) partes.push(`<span class="chip">Nº ${w.brinco}</span>`);
   if(w.sexo)   partes.push(`<span class="chip">${labelSexo(w.sexo)}</span>`);
   if(w.raca)   partes.push(`<span class="chip">${w.raca}</span>`);
@@ -744,6 +904,7 @@ function salvarAnimal(){
     id:Date.now(), brinco:w.brinco, sexo:w.sexo, raca:w.raca, idade:w.idade,
     peso:w.peso?parseInt(w.peso,10):null,
     pesagens:w.peso?[{peso:parseInt(w.peso,10), data:Date.now()}]:[],
+    manejoId: garantirManejoAtual(),
     obs:campo?campo.value.trim():'', data:Date.now()
   });
   salvar();
@@ -812,6 +973,9 @@ async function puxarEMesclar(){
     const doc = await docNuvem().get();
     const nuvem = doc.exists ? doc.data() : null;
     _nuvemCount = ((nuvem&&nuvem.rebanho)||[]).length;
+    // Une os manejos da nuvem com os do aparelho
+    ((nuvem&&nuvem.manejos)||[]).forEach(m=>{ if(!manejos.some(x=>x.id===m.id)) manejos.push(m); });
+    salvarManejos();
     const excTot = [...new Set([...excluidos, ...((nuvem&&nuvem.excluidos)||[])])];
     const porId = {};
     [...((nuvem&&nuvem.rebanho)||[]), ...rebanho].forEach(a=>{
@@ -854,7 +1018,8 @@ async function empurrarNuvem(){
   }
   try{
     await docNuvem().set({
-      rebanho: rebanho.map(a=>({id:a.id,brinco:a.brinco,sexo:a.sexo,raca:a.raca,idade:a.idade,peso:a.peso||null,pesagens:(a.pesagens||[]).map(p=>({peso:p.peso,data:p.data})),obs:a.obs||'',data:a.data})),
+      rebanho: rebanho.map(a=>({id:a.id,brinco:a.brinco,sexo:a.sexo,raca:a.raca,idade:a.idade,peso:a.peso||null,pesagens:(a.pesagens||[]).map(p=>({peso:p.peso,data:p.data})),manejoId:a.manejoId||null,obs:a.obs||'',data:a.data})),
+      manejos: manejos.map(m=>({id:m.id,nome:m.nome,data:m.data})),
       excluidos: excluidos.slice(-500),
       email: _email,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -961,6 +1126,7 @@ async function nuvemSair(){
 // ── Início ──
 carregar();
 carregarExcluidos();
+carregarManejos();
 renderHome();
 // Pede ao sistema para NÃO apagar o armazenamento deste app ("liberar espaço")
 try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
