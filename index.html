@@ -148,6 +148,14 @@
     .keys.compacto{gap:8px;margin-top:10px}
     .keys.compacto .key{height:54px;font-size:1.45rem;border-radius:12px}
 
+    /* ── Edição do animal ── */
+    .ed-label{font-size:0.72rem;font-weight:800;color:var(--text-3);text-transform:uppercase;letter-spacing:.6px;margin:12px 0 6px}
+    .ed-opt{border:1.5px solid var(--border);background:#fff;color:var(--text-2);font-weight:700;font-size:0.82rem;
+      padding:10px 6px;border-radius:10px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent}
+    .ed-opt.sel{border-color:rgba(27,122,61,.5);background:var(--green-light);color:var(--green-2)}
+    .btn-acao-card{flex:none;border:none;border-radius:10px;width:37px;height:37px;cursor:pointer;font-size:0.98rem;
+      display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+
     /* ── Alternador Animais | Manejos ── */
     .pill-tab{flex:1;border:none;background:transparent;color:var(--text-2);font-family:'Manrope',sans-serif;
       font-weight:800;font-size:0.9rem;padding:10px;border-radius:11px;cursor:pointer;
@@ -219,6 +227,16 @@
   <div class="caixa">
     <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#166B4A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.6A4 4 0 0 0 6.5 18z"/></svg> Nuvem</h3>
     <div id="nuvemBody"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: EDITAR ANIMAL ══ -->
+<div class="overlay" id="modalEditar" onclick="if(event.target===this)fecharEditar()">
+  <div class="caixa" style="max-height:88vh;overflow-y:auto">
+    <h3 id="editarTitulo">✏️ Editar animal</h3>
+    <div id="editarBody"></div>
+    <button class="btn-nuvem-acao" style="margin-top:16px" onclick="salvarEdicao()">✔ Salvar alterações</button>
+    <button class="btn-nuvem-sec" style="margin-bottom:0" onclick="fecharEditar()">Cancelar</button>
   </div>
 </div>
 
@@ -463,8 +481,9 @@ function renderHome(){
         ${filtroManejoId===null && a.manejoId && nomeManejo(a.manejoId)?`<div style="font-size:0.72rem;color:var(--text-3);margin-top:2px">📋 ${escaparHTML(nomeManejo(a.manejoId))}</div>`:''}
         ${a.obs?`<div style="font-size:0.76rem;color:var(--text-3);margin-top:2px">📝 ${escaparHTML(a.obs)}</div>`:''}
       </div>
-      <button onclick="abrirPesagem(${a.id})" title="Nova pesagem" style="flex:none;background:var(--green-light);border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;font-size:1.05rem">⚖️</button>
-      <button onclick="excluir(${a.id})" style="flex:none;background:var(--red-light);border:none;color:var(--red);border-radius:10px;width:40px;height:40px;cursor:pointer;font-size:1.05rem">✕</button>
+      <button onclick="abrirEditar(${a.id})" title="Editar" class="btn-acao-card" style="background:var(--gold-light);color:var(--gold-dark)">✏️</button>
+      <button onclick="abrirPesagem(${a.id})" title="Nova pesagem" class="btn-acao-card" style="background:var(--green-light)">⚖️</button>
+      <button onclick="excluir(${a.id})" title="Excluir" class="btn-acao-card" style="background:var(--red-light);color:var(--red)">✕</button>
     </div>`).join('');
 }
 
@@ -896,6 +915,67 @@ function confirmarPesagem(){
   _pesagemVal='';
   renderHistPesagem(a);
   atualizarVisorPesagem();
+}
+
+// ── Editar animal (corrigir informação salva errada) ──
+let _editId=null, _ed=null;
+
+function abrirEditar(id){
+  const a=rebanho.find(x=>x.id===id); if(!a) return;
+  _editId=id;
+  _ed={sexo:a.sexo, raca:a.raca, idade:a.idade};
+  document.getElementById('editarTitulo').textContent='✏️ Editar brinco '+a.brinco;
+  document.getElementById('editarBody').innerHTML=`
+    <div class="ed-label">Número do brinco</div>
+    <input id="edBrinco" type="text" inputmode="numeric" pattern="[0-9]*" value="${escaparHTML(a.brinco)}"
+      style="width:100%;border:2px solid var(--border);border-radius:12px;padding:12px;font-family:'Space Mono',monospace;font-size:1.25rem;font-weight:700;outline:none;background:#fff;color:var(--green-deep);text-align:center;letter-spacing:2px">
+    <div class="ed-label">Sexo</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="ed-opt" id="edSexoM" onclick="edSel('sexo','M')">♂ Macho</button>
+      <button class="ed-opt" id="edSexoF" onclick="edSel('sexo','F')">♀ Fêmea</button>
+    </div>
+    <div class="ed-label">Raça</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="ed-opt" id="edRacaNelore" onclick="edSel('raca','Nelore')">Nelore</button>
+      <button class="ed-opt" id="edRacaCruzado" onclick="edSel('raca','Cruzado')">Cruzado</button>
+    </div>
+    <div class="ed-label">Idade</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="edIdades">
+      ${IDADES.map(i=>`<button class="ed-opt" data-idade="${i.v}" onclick="edSel('idade','${i.v}')">${i.l}</button>`).join('')}
+    </div>
+    <div class="ed-label">Manejo</div>
+    <select id="edManejo" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px;font-family:inherit;background:#fff;color:var(--text);outline:none">
+      <option value="">Sem manejo</option>
+      ${manejos.map(m=>`<option value="${m.id}" ${a.manejoId===m.id?'selected':''}>${escaparHTML(m.nome)}</option>`).join('')}
+    </select>
+    <div class="ed-label">Observação</div>
+    <textarea id="edObs" class="obs" rows="2" style="margin-bottom:0" placeholder="Sem observação">${escaparHTML(a.obs||'')}</textarea>
+    <div style="font-size:0.72rem;color:var(--text-3);margin-top:8px">⚖️ O peso é corrigido pelo botão de pesagens do animal.</div>`;
+  edMarcar();
+  document.getElementById('modalEditar').classList.add('visivel');
+}
+function edSel(campo,valor){ _ed[campo]=valor; edMarcar(); }
+function edMarcar(){
+  document.getElementById('edSexoM').className='ed-opt'+(_ed.sexo==='M'?' sel':'');
+  document.getElementById('edSexoF').className='ed-opt'+(_ed.sexo==='F'?' sel':'');
+  document.getElementById('edRacaNelore').className='ed-opt'+(_ed.raca==='Nelore'?' sel':'');
+  document.getElementById('edRacaCruzado').className='ed-opt'+(_ed.raca==='Cruzado'?' sel':'');
+  document.querySelectorAll('#edIdades .ed-opt').forEach(b=>b.className='ed-opt'+(b.dataset.idade===_ed.idade?' sel':''));
+}
+function fecharEditar(){ document.getElementById('modalEditar').classList.remove('visivel'); _editId=null; _ed=null; }
+function salvarEdicao(){
+  const a=rebanho.find(x=>x.id===_editId); if(!a) return;
+  const brinco=document.getElementById('edBrinco').value.trim();
+  if(!brinco){ toast('⚠️ O brinco não pode ficar vazio'); return; }
+  if(!/^\d+$/.test(brinco)){ toast('⚠️ O brinco deve ter só números'); return; }
+  if(rebanho.some(x=>x.brinco===brinco && x.id!==a.id)){ toast('⚠️ Já existe outro animal com o brinco '+brinco, 4500); return; }
+  a.brinco=brinco;
+  a.sexo=_ed.sexo; a.raca=_ed.raca; a.idade=_ed.idade;
+  const man=document.getElementById('edManejo').value;
+  a.manejoId = man ? parseInt(man,10) : null;
+  a.obs=document.getElementById('edObs').value.trim();
+  salvar(); renderHome(); fecharEditar();
+  toast('✏️ Brinco '+brinco+' atualizado');
 }
 
 // Escolha com avanço automático para o próximo passo

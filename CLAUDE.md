@@ -30,7 +30,16 @@ pensado para uso no curral com tela grande e botões enormes.
    próximo animal; "Sim" abre campo de texto.
 
 Tela inicial: contadores (total/♂/♀) + alternador **Animais | Manejos**;
-lista de animais (com filtro por manejo), excluir, exportar/importar.
+lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
+
+## Edição do animal (v11)
+
+- Botão ✏️ no cartão → `abrirEditar(id)`: modal edita brinco, sexo, raça,
+  idade (pílulas `.ed-opt`), manejo (select) e observação. Peso fica FORA
+  (corrige-se pelo modal de pesagens, que preserva o histórico).
+- Validações: brinco não-vazio, só dígitos, único (exceto o próprio).
+- Edição propaga p/ nuvem: na mesclagem o lado local vence nos campos
+  simples (`Object.assign({}, nuvem, local)`).
 
 ## Manejos (sessões de trabalho — v9)
 
