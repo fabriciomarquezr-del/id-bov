@@ -31,6 +31,18 @@ pensado para uso no curral com tela grande e botões enormes.
 
 Tela inicial: lista do rebanho, contadores (total/♂/♀), excluir, exportar.
 
+## Pesagens (histórico de peso — v7)
+
+- Cada animal tem `pesagens: [{peso, data}]`; o campo `peso` espelha SEMPRE a
+  mais recente (`normalizarRebanho()` garante isso e migra animais antigos).
+- Botão ⚖️ no cartão → `abrirPesagem(id)`: modal com histórico (data, peso,
+  ganho/perda entre pesagens) + teclado compacto (`.keys.compacto`) para
+  registrar nova pesagem; toast mostra a diferença desde a última.
+- Nuvem: mesclagem une os históricos por data (`puxarEMesclar`) — pesagens
+  feitas em aparelhos diferentes não se perdem.
+- Excel: aba "Pesagens" (Brinco, Data, Peso, Ganho desde a anterior) e a aba
+  Rebanho usa "Peso atual (kg)".
+
 ## Exportação (v5)
 
 - **Excel (.xlsx)** via SheetJS (CDN cdnjs, cacheado pelo SW p/ offline):
@@ -51,6 +63,26 @@ Tela inicial: lista do rebanho, contadores (total/♂/♀), excluir, exportar.
   `[{ id, brinco, sexo:'M'|'F', raca, idade, obs, data }]`
 - `localStorage` chave `idbov-excluidos-v1`: lápides `[ids]` (máx 500) para a
   mesclagem com a nuvem não ressuscitar animais apagados.
+
+## Proteção de dados (v8) — INCIDENTE REAL em 06/07/2026
+
+Usuário perdeu 47 animais cadastrados offline no curral (restaram só os 6 da
+nuvem); recuperou pelo Excel que tinha mandado no WhatsApp. Causa provável:
+navegador descartou o storage (link aberto por outro caminho / limpeza do SO).
+Proteções implementadas — NÃO REMOVER:
+
+- **Cofre IndexedDB** (`idbov-cofre-v1`): toda gravação vai p/ localStorage +
+  cofre; na abertura, `recuperarDoCofre()` UNE os dois (nunca encolhe) antes
+  da mesclagem com a nuvem (`onAuthMudou` espera `_cofrePronto`).
+- **`navigator.storage.persist()`** pedido no boot.
+- **Trava anti-perda no envio**: `empurrarNuvem()` bloqueia se
+  `rebanho.length + excluidos.length < _nuvemCount` (nuvem tinha mais).
+- **Reenvio insistente**: eventos `online` + `visibilitychange` + intervalo 30s.
+- **Importar planilha** (`importarPlanilha`): lê o .xlsx/.csv exportado pelo
+  app (abas Rebanho e Pesagens, rótulos em linguagem natural) e recadastra o
+  que não existe (dedup por brinco; pesagens dedup por peso±1dia).
+- **Linha de status `#syncInfo`** na home: sem conta / aguardando internet /
+  nuvem em dia.
 
 ## Nuvem (Firebase — opcional, v3)
 

@@ -143,6 +143,10 @@
     .caixa .erro{display:none;background:var(--red-light);color:var(--red);border-radius:10px;padding:9px 12px;font-size:0.8rem;font-weight:700;margin-bottom:10px}
     .btn-nuvem-acao{width:100%;border:none;cursor:pointer;font-family:'Manrope',sans-serif;font-size:0.95rem;background:var(--green);color:#fff;font-weight:800;padding:13px;border-radius:12px;box-shadow:0 4px 0 #0f5a2c;margin-bottom:9px}
     .btn-nuvem-sec{width:100%;border:1.5px solid var(--border);cursor:pointer;font-family:inherit;font-size:0.86rem;background:#fff;color:var(--text);font-weight:700;padding:11px;border-radius:12px;margin-bottom:9px}
+
+    /* ── Pesagem: teclado compacto dentro do modal ── */
+    .keys.compacto{gap:8px;margin-top:10px}
+    .keys.compacto .key{height:54px;font-size:1.45rem;border-radius:12px}
   </style>
 </head>
 <body>
@@ -166,9 +170,12 @@
     Cadastrar animal
   </button>
   <div id="resumo" style="display:flex;gap:8px;margin:14px 0 0;flex-wrap:wrap"></div>
+  <div id="syncInfo" style="font-size:0.78rem;font-weight:700;margin-top:10px;min-height:18px;color:var(--text-2)"></div>
   <div class="list-header">Animais cadastrados</div>
   <div id="lista"></div>
   <button id="btnExportar" class="btn-claro" style="display:none" onclick="exportarExcel()">📊 Exportar planilha (Excel)</button>
+  <button class="btn-claro" onclick="document.getElementById('importInput').click()">📥 Importar planilha (recuperar dados)</button>
+  <input type="file" id="importInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarPlanilha(this.files)">
 </div>
 
 <!-- ══ TELA: ASSISTENTE DE CADASTRO ══ -->
@@ -188,6 +195,22 @@
   <div class="caixa">
     <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#166B4A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.6A4 4 0 0 0 6.5 18z"/></svg> Nuvem</h3>
     <div id="nuvemBody"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: PESAGENS DO ANIMAL ══ -->
+<div class="overlay" id="modalPesagem" onclick="if(event.target===this)fecharPesagem()">
+  <div class="caixa">
+    <h3 id="pesagemTitulo">⚖️ Pesagens</h3>
+    <div id="pesagemHist" style="max-height:140px;overflow-y:auto;margin-bottom:10px"></div>
+    <div class="visor vazio" id="pesagemVisor" style="font-size:1.9rem;min-height:58px;padding:10px">—</div>
+    <div class="keys compacto">
+      <button class="key" onclick="pesagemDigito('1')">1</button><button class="key" onclick="pesagemDigito('2')">2</button><button class="key" onclick="pesagemDigito('3')">3</button>
+      <button class="key" onclick="pesagemDigito('4')">4</button><button class="key" onclick="pesagemDigito('5')">5</button><button class="key" onclick="pesagemDigito('6')">6</button>
+      <button class="key" onclick="pesagemDigito('7')">7</button><button class="key" onclick="pesagemDigito('8')">8</button><button class="key" onclick="pesagemDigito('9')">9</button>
+      <button class="key del" onclick="pesagemApagar()">⌫</button><button class="key" onclick="pesagemDigito('0')">0</button><button class="key ok" id="pesagemKeyOk" onclick="confirmarPesagem()" disabled>✓</button>
+    </div>
+    <button class="btn-nuvem-sec" style="margin-top:12px;margin-bottom:0" onclick="fecharPesagem()">Fechar</button>
   </div>
 </div>
 
@@ -211,8 +234,82 @@ const IDADES = [
 const PASSOS = ['brinco','sexo','raca','idade','peso','obs'];
 
 // ── Persistência ──
-function carregar(){ try{ rebanho = JSON.parse(localStorage.getItem(DB_KEY)) || []; }catch(e){ rebanho=[]; } }
-function salvar(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(rebanho)); }catch(e){} agendarSync(); }
+function carregar(){ try{ rebanho = JSON.parse(localStorage.getItem(DB_KEY)) || []; }catch(e){ rebanho=[]; } normalizarRebanho(); }
+
+// ══════════════════════════════════════════════
+//  COFRE — segunda cópia no aparelho (IndexedDB)
+//  O localStorage pode ser apagado pelo navegador ("liberar espaço",
+//  abrir por outro caminho...). O cofre é uma cópia redundante: na
+//  abertura, o app recupera automaticamente o que tiver a mais.
+// ══════════════════════════════════════════════
+const IDB_NOME='idbov-cofre-v1', IDB_STORE='dados';
+function _abrirIDB(){
+  return new Promise(res=>{
+    if(!('indexedDB' in window)) return res(null);
+    try{
+      const rq=indexedDB.open(IDB_NOME,1);
+      rq.onupgradeneeded=()=>rq.result.createObjectStore(IDB_STORE);
+      rq.onsuccess=()=>res(rq.result);
+      rq.onerror=()=>res(null);
+      rq.onblocked=()=>res(null);
+    }catch(e){ res(null); }
+  });
+}
+async function salvarCofre(){
+  try{
+    const db=await _abrirIDB(); if(!db) return;
+    db.transaction(IDB_STORE,'readwrite').objectStore(IDB_STORE)
+      .put(JSON.parse(JSON.stringify({rebanho, excluidos, quando:Date.now()})),'backup');
+  }catch(e){}
+}
+async function lerCofre(){
+  try{
+    const db=await _abrirIDB(); if(!db) return null;
+    return await new Promise(res=>{
+      const rq=db.transaction(IDB_STORE).objectStore(IDB_STORE).get('backup');
+      rq.onsuccess=()=>res(rq.result||null);
+      rq.onerror=()=>res(null);
+    });
+  }catch(e){ return null; }
+}
+// Na abertura: une o cofre com o localStorage — o app NUNCA encolhe sozinho
+async function recuperarDoCofre(){
+  try{
+    const cofre=await lerCofre();
+    if(!cofre || !Array.isArray(cofre.rebanho)){ salvarCofre(); return; }
+    const antes=rebanho.length;
+    const excTot=[...new Set([...(cofre.excluidos||[]), ...excluidos])];
+    const porId={};
+    [...cofre.rebanho, ...rebanho].forEach(a=>{
+      const ja=porId[a.id];
+      if(ja){
+        const porData={};
+        [...(ja.pesagens||[]), ...(a.pesagens||[])].forEach(p=>{porData[p.data]=p;});
+        a=Object.assign({},ja,a);
+        a.pesagens=Object.values(porData).sort((x,y)=>x.data-y.data);
+      }
+      porId[a.id]=a;
+    });
+    rebanho=Object.values(porId).filter(a=>!excTot.includes(a.id)).sort((a,b)=>a.data-b.data);
+    excluidos=excTot;
+    normalizarRebanho();
+    if(rebanho.length>antes){
+      salvarExcluidos(); salvar(); renderHome();
+      toast('♻️ '+(rebanho.length-antes)+' animais recuperados do cofre do aparelho', 6000);
+    } else { salvarCofre(); }
+  }catch(e){ console.error('cofre:',e); }
+}
+
+// Migração: animal antigo (sem histórico) ganha a 1ª pesagem a partir do peso
+// do cadastro; e o campo `peso` passa a espelhar sempre a pesagem mais recente.
+function normalizarRebanho(){
+  rebanho.forEach(a=>{
+    if(!Array.isArray(a.pesagens)) a.pesagens = a.peso ? [{peso:a.peso, data:a.data}] : [];
+    a.pesagens.sort((x,y)=>x.data-y.data);
+    a.peso = a.pesagens.length ? a.pesagens[a.pesagens.length-1].peso : null;
+  });
+}
+function salvar(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(rebanho)); }catch(e){} salvarCofre(); agendarSync(); }
 
 function labelIdade(v){ const o=IDADES.find(i=>i.v===v); return o?o.l:v; }
 function labelSexo(v){ return v==='M'?'Macho':(v==='F'?'Fêmea':''); }
@@ -246,6 +343,7 @@ function renderHome(){
     <span class="chip">♂ ${machos}</span>
     <span class="chip">♀ ${femeas}</span>` : '';
   document.getElementById('btnExportar').style.display = rebanho.length?'block':'none';
+  atualizarDotNuvem();
   const lista=document.getElementById('lista');
   if(!rebanho.length){
     lista.innerHTML=`<div class="empty">Nenhum animal cadastrado ainda.<br>Toque em <b>"Cadastrar animal"</b> para começar.</div>`;
@@ -259,6 +357,7 @@ function renderHome(){
         <div style="font-size:0.78rem;color:var(--text-2);font-weight:600">${labelSexo(a.sexo)} · ${a.raca} · ${labelIdade(a.idade)}${a.peso?` · ⚖️ ${a.peso} kg`:''}</div>
         ${a.obs?`<div style="font-size:0.76rem;color:var(--text-3);margin-top:2px">📝 ${escaparHTML(a.obs)}</div>`:''}
       </div>
+      <button onclick="abrirPesagem(${a.id})" title="Nova pesagem" style="flex:none;background:var(--green-light);border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;font-size:1.05rem">⚖️</button>
       <button onclick="excluir(${a.id})" style="flex:none;background:var(--red-light);border:none;color:var(--red);border-radius:10px;width:40px;height:40px;cursor:pointer;font-size:1.05rem">✕</button>
     </div>`).join('');
 }
@@ -306,13 +405,31 @@ function exportarExcel(){
     'Sexo':             labelSexo(a.sexo),
     'Raça':             a.raca,
     'Idade (categoria)':labelIdade(a.idade),
-    'Peso (kg)':        a.peso || '',
+    'Peso atual (kg)':  a.peso || '',
     'Observação':       a.obs || '',
     'Data de cadastro': new Date(a.data).toLocaleString('pt-BR')
   }));
   const ws = XLSX.utils.json_to_sheet(linhas);
-  ws['!cols'] = [{wch:10},{wch:8},{wch:10},{wch:18},{wch:10},{wch:42},{wch:18}];
+  ws['!cols'] = [{wch:10},{wch:8},{wch:10},{wch:18},{wch:14},{wch:42},{wch:18}];
   XLSX.utils.book_append_sheet(wb, ws, 'Rebanho');
+
+  // ── Aba "Pesagens" — evolução de peso: uma linha por pesagem ──
+  const pesagensLinhas = [];
+  [...rebanho].sort((a,b)=>a.data-b.data).forEach(a=>{
+    (a.pesagens||[]).forEach((p,i)=>{
+      pesagensLinhas.push({
+        'Brinco':                    a.brinco,
+        'Data da pesagem':           new Date(p.data).toLocaleDateString('pt-BR'),
+        'Peso (kg)':                 p.peso,
+        'Ganho desde a anterior (kg)': i>0 ? p.peso-a.pesagens[i-1].peso : ''
+      });
+    });
+  });
+  if(pesagensLinhas.length){
+    const wsP = XLSX.utils.json_to_sheet(pesagensLinhas);
+    wsP['!cols'] = [{wch:10},{wch:16},{wch:10},{wch:24}];
+    XLSX.utils.book_append_sheet(wb, wsP, 'Pesagens');
+  }
 
   // ── Aba 2: Resumo — totais prontos para análise ──
   const conta = f => rebanho.filter(f).length;
@@ -340,6 +457,68 @@ function exportarExcel(){
   const nome = 'id-bov-rebanho-'+new Date().toISOString().slice(0,10)+'.xlsx';
   XLSX.writeFile(wb, nome);
   toast('📊 Planilha exportada: '+nome, 4000);
+}
+
+// ── IMPORTAR planilha (Excel/CSV) — recuperação de dados ──
+// Lê a planilha exportada pelo próprio ID-Bov (ou compatível) e recadastra
+// os animais que ainda não existem (compara pelo número do brinco).
+function parseDataPlanilha(v){
+  if(v==null || v==='') return null;
+  if(typeof v==='number') return Math.round((v-25569)*86400*1000);  // data serial do Excel
+  const m=String(v).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if(m) return new Date(+m[3], +m[2]-1, +m[1], +(m[4]||12), +(m[5]||0), +(m[6]||0)).getTime();
+  const d=new Date(v); return isNaN(d)?null:d.getTime();
+}
+async function importarPlanilha(files){
+  const f = files && files[0]; if(!f) return;
+  document.getElementById('importInput').value='';
+  if(typeof XLSX==='undefined'){ toast('📴 Preciso de internet uma vez para carregar o leitor de planilhas', 5000); return; }
+  try{
+    const buf = await f.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const nomeAba = wb.SheetNames.includes('Rebanho') ? 'Rebanho' : wb.SheetNames[0];
+    const linhas = XLSX.utils.sheet_to_json(wb.Sheets[nomeAba], {defval:''});
+    let novos=0, repetidos=0, ignorados=0;
+    const base=Date.now();
+    linhas.forEach((l,i)=>{
+      const brinco = String(l['Brinco'] ?? l['brinco'] ?? '').trim();
+      if(!brinco){ ignorados++; return; }
+      if(rebanho.some(a=>a.brinco===brinco)){ repetidos++; return; }
+      const sexoTxt = String(l['Sexo'] ?? '').trim().toLowerCase();
+      const sexo = sexoTxt.startsWith('m') ? 'M' : (sexoTxt.startsWith('f') ? 'F' : null);
+      if(!sexo){ ignorados++; return; }
+      const raca = String(l['Raça'] ?? l['Raca'] ?? '').trim() || 'Cruzado';
+      const idadeTxt = String(l['Idade (categoria)'] ?? l['Idade'] ?? '').trim();
+      const idadeObj = IDADES.find(x=>x.l===idadeTxt || x.v===idadeTxt);
+      const idade = idadeObj ? idadeObj.v : '';
+      const peso = parseInt(l['Peso atual (kg)'] ?? l['Peso (kg)'] ?? '', 10) || null;
+      const data = parseDataPlanilha(l['Data de cadastro']) || base;
+      rebanho.push({
+        id: base+i, brinco, sexo, raca, idade, peso,
+        pesagens: peso ? [{peso, data}] : [],
+        obs: String(l['Observação'] ?? l['Observacao'] ?? '').trim(),
+        data
+      });
+      novos++;
+    });
+    // Aba "Pesagens" (se existir): completa o histórico de peso
+    if(wb.SheetNames.includes('Pesagens')){
+      XLSX.utils.sheet_to_json(wb.Sheets['Pesagens'], {defval:''}).forEach(l=>{
+        const a=rebanho.find(x=>x.brinco===String(l['Brinco'] ?? '').trim()); if(!a) return;
+        const peso=parseInt(l['Peso (kg)'],10); if(!peso) return;
+        const data=parseDataPlanilha(l['Data da pesagem']) || Date.now();
+        if(!Array.isArray(a.pesagens)) a.pesagens=[];
+        // evita duplicar a mesma pesagem (mesmo peso em até 1 dia de diferença)
+        if(!a.pesagens.some(p=>p.peso===peso && Math.abs(p.data-data)<86400000)) a.pesagens.push({peso, data});
+      });
+    }
+    normalizarRebanho();
+    salvar(); renderHome();
+    toast(`📥 ${novos} animais importados` + (repetidos?` · ${repetidos} já existiam`:'') + (ignorados?` · ${ignorados} linhas ignoradas`:''), 7000);
+  }catch(e){
+    console.error('importarPlanilha:', e);
+    toast('⚠️ Não consegui ler esta planilha. Use o arquivo exportado pelo ID-Bov (.xlsx)', 6000);
+  }
 }
 
 // ── Assistente passo a passo ──
@@ -491,6 +670,66 @@ function pesoApagar(){
 function confirmarPeso(){ if(w.peso){ w.passo++; renderPasso(); } }
 function pularPeso(){ w.peso=''; w.passo++; renderPasso(); }
 
+// ── Nova pesagem (histórico de peso por animal) ──
+let _pesagemId=null, _pesagemVal='';
+
+function abrirPesagem(id){
+  const a=rebanho.find(x=>x.id===id); if(!a) return;
+  _pesagemId=id; _pesagemVal='';
+  document.getElementById('pesagemTitulo').textContent='⚖️ Brinco '+a.brinco;
+  renderHistPesagem(a);
+  atualizarVisorPesagem();
+  document.getElementById('modalPesagem').classList.add('visivel');
+}
+function fecharPesagem(){
+  document.getElementById('modalPesagem').classList.remove('visivel');
+  _pesagemId=null; _pesagemVal='';
+}
+function renderHistPesagem(a){
+  const h=document.getElementById('pesagemHist');
+  const ps=(a.pesagens||[]);
+  if(!ps.length){
+    h.innerHTML='<div style="font-size:0.82rem;color:var(--text-3);text-align:center;padding:6px 0">Nenhuma pesagem registrada ainda.<br>Digite o peso abaixo.</div>';
+    return;
+  }
+  h.innerHTML = ps.map((p,i)=>{
+    const dif = i>0 ? p.peso-ps[i-1].peso : null;
+    const difTxt = dif===null ? '' :
+      (dif>=0 ? ` <span style="color:var(--green-2)">(+${dif} kg)</span>` : ` <span style="color:var(--red)">(${dif} kg)</span>`);
+    return `<div style="display:flex;justify-content:space-between;font-size:0.84rem;padding:6px 2px;border-bottom:1px dashed var(--border-2)">
+      <span style="color:var(--text-2)">${new Date(p.data).toLocaleDateString('pt-BR')}</span>
+      <b class="mono">${p.peso} kg${difTxt}</b></div>`;
+  }).join('');
+  h.scrollTop=h.scrollHeight;
+}
+function atualizarVisorPesagem(){
+  const v=document.getElementById('pesagemVisor');
+  v.textContent=_pesagemVal?_pesagemVal+' kg':'—';
+  v.classList.toggle('vazio',!_pesagemVal);
+  document.getElementById('pesagemKeyOk').disabled=!_pesagemVal;
+}
+function pesagemDigito(d){
+  if(_pesagemVal.length>=4) return;
+  if(_pesagemVal==='' && d==='0') return;
+  _pesagemVal+=d; atualizarVisorPesagem();
+}
+function pesagemApagar(){ _pesagemVal=_pesagemVal.slice(0,-1); atualizarVisorPesagem(); }
+function confirmarPesagem(){
+  const a=rebanho.find(x=>x.id===_pesagemId); if(!a||!_pesagemVal) return;
+  const peso=parseInt(_pesagemVal,10);
+  if(!Array.isArray(a.pesagens)) a.pesagens=[];
+  const anterior=a.pesagens.length ? a.pesagens[a.pesagens.length-1].peso : null;
+  a.pesagens.push({peso, data:Date.now()});
+  a.peso=peso;
+  salvar(); renderHome();
+  const dif = anterior===null ? '' :
+    (peso-anterior>=0 ? ` (+${peso-anterior} kg desde a última)` : ` (${peso-anterior} kg desde a última)`);
+  toast('⚖️ Brinco '+a.brinco+': '+peso+' kg'+dif, 4500);
+  _pesagemVal='';
+  renderHistPesagem(a);
+  atualizarVisorPesagem();
+}
+
 // Escolha com avanço automático para o próximo passo
 function escolher(campo,valor){ w[campo]=valor; w.passo++; renderPasso(); }
 function mostrarObs(){
@@ -504,6 +743,7 @@ function salvarAnimal(){
   rebanho.push({
     id:Date.now(), brinco:w.brinco, sexo:w.sexo, raca:w.raca, idade:w.idade,
     peso:w.peso?parseInt(w.peso,10):null,
+    pesagens:w.peso?[{peso:parseInt(w.peso,10), data:Date.now()}]:[],
     obs:campo?campo.value.trim():'', data:Date.now()
   });
   salvar();
@@ -531,6 +771,7 @@ const EXC_KEY = 'idbov-excluidos-v1';
 let excluidos = [];
 let _auth=null, _db=null, _uid=null, _email='';
 let _nuvemOk=false;      // trava: só grava na nuvem depois de ler o estado dela
+let _nuvemCount=0;       // quantos animais a nuvem tinha na última leitura (trava anti-perda)
 let _syncTimer=null, _pendente=false, _erroMostrado=false;
 
 function carregarExcluidos(){ try{ excluidos = JSON.parse(localStorage.getItem(EXC_KEY)) || []; }catch(e){ excluidos=[]; } }
@@ -545,14 +786,20 @@ function iniciarNuvem(){
     _db = app.firestore();
     try{ _db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
     _auth.onAuthStateChanged(onAuthMudou);
+    // Reenvio insistente: ao voltar a internet, ao voltar para o app e a cada 30s
     window.addEventListener('online', ()=>{ if(_pendente) empurrarNuvem(); });
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && _pendente) empurrarNuvem(); });
+    setInterval(()=>{ if(_pendente && _uid && navigator.onLine) empurrarNuvem(); }, 30000);
   }catch(e){ console.error('iniciarNuvem:',e); }
 }
 
 async function onAuthMudou(user){
   _uid = user ? user.uid : null;
   _email = user ? (user.email||'') : '';
-  if(_uid){ await puxarEMesclar(); }
+  if(_uid){
+    try{ await _cofrePronto; }catch(e){}   // cofre primeiro: mescla com o estado completo
+    await puxarEMesclar();
+  }
   else { _nuvemOk=false; }
   atualizarDotNuvem();
 }
@@ -564,10 +811,22 @@ async function puxarEMesclar(){
   try{
     const doc = await docNuvem().get();
     const nuvem = doc.exists ? doc.data() : null;
+    _nuvemCount = ((nuvem&&nuvem.rebanho)||[]).length;
     const excTot = [...new Set([...excluidos, ...((nuvem&&nuvem.excluidos)||[])])];
     const porId = {};
-    [...((nuvem&&nuvem.rebanho)||[]), ...rebanho].forEach(a=>{ porId[a.id]=a; });
+    [...((nuvem&&nuvem.rebanho)||[]), ...rebanho].forEach(a=>{
+      const ja = porId[a.id];
+      if(ja){
+        // Mesmo animal nos dois lados: une os históricos de pesagem (por data)
+        const porData = {};
+        [...(ja.pesagens||[]), ...(a.pesagens||[])].forEach(p=>{ porData[p.data]=p; });
+        a = Object.assign({}, ja, a);
+        a.pesagens = Object.values(porData).sort((x,y)=>x.data-y.data);
+      }
+      porId[a.id]=a;
+    });
     rebanho = Object.values(porId).filter(a=>!excTot.includes(a.id)).sort((a,b)=>a.data-b.data);
+    normalizarRebanho();     // peso = pesagem mais recente
     excluidos = excTot;
     salvarExcluidos();
     _nuvemOk = true;         // estado conhecido: liberado para gravar
@@ -586,14 +845,22 @@ function agendarSync(){
 
 async function empurrarNuvem(){
   if(!_db || !_uid || !_nuvemOk) return;
+  // TRAVA ANTI-PERDA: nunca envia um rebanho menor do que a nuvem tinha,
+  // a menos que a diferença seja explicada por exclusões feitas de propósito.
+  if(rebanho.length + excluidos.length < _nuvemCount){
+    console.warn('trava anti-perda: envio bloqueado', rebanho.length, excluidos.length, _nuvemCount);
+    toast('🛡️ Proteção: envio à nuvem bloqueado para não apagar dados. Feche e abra o app; se repetir, me avise.', 7000);
+    return;
+  }
   try{
     await docNuvem().set({
-      rebanho: rebanho.map(a=>({id:a.id,brinco:a.brinco,sexo:a.sexo,raca:a.raca,idade:a.idade,peso:a.peso||null,obs:a.obs||'',data:a.data})),
+      rebanho: rebanho.map(a=>({id:a.id,brinco:a.brinco,sexo:a.sexo,raca:a.raca,idade:a.idade,peso:a.peso||null,pesagens:(a.pesagens||[]).map(p=>({peso:p.peso,data:p.data})),obs:a.obs||'',data:a.data})),
       excluidos: excluidos.slice(-500),
       email: _email,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     _pendente=false; _erroMostrado=false;
+    _nuvemCount = rebanho.length;
   }catch(e){ _pendente=true; tratarErroNuvem(e); }
   atualizarDotNuvem();
 }
@@ -610,6 +877,12 @@ function tratarErroNuvem(e){
 function atualizarDotNuvem(){
   const d=document.getElementById('nuvemDot');
   d.className = _uid ? (_pendente?'pendente':'ok') : '';
+  const s=document.getElementById('syncInfo');
+  if(s){
+    if(!_uid) s.innerHTML = rebanho.length ? '📱 Dados salvos só neste aparelho — toque na nuvem ☁️ e entre na conta para ter cópia de segurança' : '';
+    else if(_pendente) s.innerHTML = '⏳ <span style="color:var(--gold-dark)">Aguardando internet para enviar à nuvem</span> — tudo salvo no aparelho, pode continuar trabalhando';
+    else s.innerHTML = '<span style="color:var(--green-2)">☁️ Nuvem em dia — cópia de segurança feita</span>';
+  }
 }
 
 // ── Modal da nuvem ──
@@ -689,6 +962,10 @@ async function nuvemSair(){
 carregar();
 carregarExcluidos();
 renderHome();
+// Pede ao sistema para NÃO apagar o armazenamento deste app ("liberar espaço")
+try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+// Recupera do cofre ANTES de mesclar com a nuvem (a nuvem espera o cofre)
+const _cofrePronto = recuperarDoCofre();
 iniciarNuvem();
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
