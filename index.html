@@ -492,24 +492,29 @@ function garantirManejoAtual(){
   salvarManejos(); salvar();
   return m.id;
 }
-// Campos que um manejo pode preencher (o brinco é sempre obrigatório)
+// Campos que um manejo pode preencher (brinco é tratado à parte).
+// "categoria" (Primípara/Multípara/Vaca) existe SÓ na área de Reprodução.
+const CATEGORIAS=['Primípara','Multípara','Vaca'];
 const CAMPOS_DEF=[
-  {v:'sexo',  l:'Sexo (macho/fêmea)'},
-  {v:'raca',  l:'Raça'},
-  {v:'idade', l:'Idade (categoria)'},
-  {v:'peso',  l:'Peso (kg)'},
-  {v:'obs',   l:'Observação'}
+  {v:'sexo',     l:'Sexo (macho/fêmea)'},
+  {v:'raca',     l:'Raça'},
+  {v:'categoria',l:'Categoria (primípara/multípara/vaca)'},
+  {v:'idade',    l:'Idade (faixa de meses)'},
+  {v:'peso',     l:'Peso (kg)'},
+  {v:'obs',      l:'Observação'}
 ];
-const CAMPOS_TODOS=CAMPOS_DEF.map(c=>c.v);
-function camposDoManejo(m){ return (m && Array.isArray(m.campos)) ? m.campos : CAMPOS_TODOS.slice(); }
+function camposDefDaArea(a){ return a==='reproducao' ? CAMPOS_DEF : CAMPOS_DEF.filter(c=>c.v!=='categoria'); }
+function camposTodosDaArea(a){ return camposDefDaArea(a).map(c=>c.v); }
+function camposDoManejo(m){ return (m && Array.isArray(m.campos)) ? m.campos : camposTodosDaArea(areaDe(m)); }
 function rotuloCampo(v){ const c=CAMPOS_DEF.find(x=>x.v===v); return c?c.l.split(' (')[0]:v; }
 
-let _cfgId=null, _cfgCampos=null, _cfgBrinco=true;
+let _cfgId=null, _cfgCampos=null, _cfgBrinco=true, _cfgArea='corte';
 function novoManejo(){ abrirManejoCfg(null); }
 function abrirManejoCfg(id){
   _cfgId=id;
   const m=id?manejos.find(x=>x.id===id):null;
-  _cfgCampos = m ? camposDoManejo(m).slice() : CAMPOS_TODOS.slice();
+  _cfgArea = m ? areaDe(m) : area;
+  _cfgCampos = m ? camposDoManejo(m).slice() : camposTodosDaArea(_cfgArea).slice();
   _cfgBrinco = m ? !m.semBrinco : true;
   document.getElementById('cfgTitulo').textContent = m ? '📋 Editar manejo' : '📋 Novo manejo';
   document.getElementById('cfgNome').value = m ? m.nome : 'Manejo '+new Date().toLocaleDateString('pt-BR');
@@ -520,7 +525,7 @@ function renderCfgCampos(){
   document.getElementById('cfgCampos').innerHTML = `
     <button class="cfg-campo${_cfgBrinco?' sel':''}" onclick="cfgToggleBrinco()">
       <span>Número do brinco</span><span class="estado">${_cfgBrinco?'✓ Vai preencher':'○ Pular'}</span>
-    </button>` + CAMPOS_DEF.map(c=>`
+    </button>` + camposDefDaArea(_cfgArea).map(c=>`
     <button class="cfg-campo${_cfgCampos.includes(c.v)?' sel':''}" onclick="cfgToggle('${c.v}')">
       <span>${c.l}</span><span class="estado">${_cfgCampos.includes(c.v)?'✓ Vai preencher':'○ Pular'}</span>
     </button>`).join('');
@@ -529,7 +534,7 @@ function cfgToggleBrinco(){ _cfgBrinco=!_cfgBrinco; renderCfgCampos(); }
 function cfgToggle(v){
   const i=_cfgCampos.indexOf(v);
   if(i>=0) _cfgCampos.splice(i,1);
-  else { _cfgCampos.push(v); _cfgCampos=CAMPOS_TODOS.filter(x=>_cfgCampos.includes(x)); }
+  else { _cfgCampos.push(v); _cfgCampos=camposTodosDaArea(_cfgArea).filter(x=>_cfgCampos.includes(x)); }
   renderCfgCampos();
 }
 function fecharManejoCfg(){ document.getElementById('modalManejoCfg').classList.remove('visivel'); _cfgId=null; _cfgCampos=null; }
@@ -645,7 +650,7 @@ function renderHome(){
       <div class="animal-sexo" style="background:${a.sexo==='F'?'rgba(221,82,55,.10)':(a.sexo==='M'?'var(--green-light)':'rgba(18,38,26,.06)')};color:${a.sexo==='F'?'var(--red)':(a.sexo==='M'?'var(--green-2)':'var(--text-3)')}">${a.sexo==='F'?'♀':(a.sexo==='M'?'♂':'🐄')}</div>
       <div style="flex:1;min-width:0">
         <div class="mono" style="font-weight:700;font-size:1.2rem;color:${a.brinco?'var(--green-deep)':'var(--text-3)'}">${a.brinco||'— s/ brinco'}</div>
-        <div style="font-size:0.78rem;color:var(--text-2);font-weight:600">${[labelSexo(a.sexo), a.raca, labelIdade(a.idade), a.peso?`⚖️ ${a.peso} kg`:''].filter(Boolean).join(' · ') || '—'}</div>
+        <div style="font-size:0.78rem;color:var(--text-2);font-weight:600">${[labelSexo(a.sexo), a.raca, a.categoria||'', labelIdade(a.idade), a.peso?`⚖️ ${a.peso} kg`:''].filter(Boolean).join(' · ') || '—'}</div>
         ${filtroManejoId===null && a.manejoId && nomeManejo(a.manejoId)?`<div style="font-size:0.72rem;color:var(--text-3);margin-top:2px">📋 ${escaparHTML(nomeManejo(a.manejoId))}</div>`:''}
         ${a.obs?`<div style="font-size:0.76rem;color:var(--text-3);margin-top:2px">📝 ${escaparHTML(a.obs)}</div>`:''}
       </div>
@@ -706,9 +711,9 @@ function excluir(id){
 }
 
 function exportarCSV(){
-  const linhas=[['Area','Brinco','Sexo','Raca','Idade','Peso (kg)','Manejo','Observacao','Data']];
+  const linhas=[['Area','Brinco','Sexo','Raca','Categoria','Idade','Peso (kg)','Manejo','Observacao','Data']];
   [...animaisDaArea()].sort((a,b)=>a.data-b.data).forEach(a=>{
-    linhas.push([area==='corte'?'Corte':'Reproducao', a.brinco, labelSexo(a.sexo), a.raca, labelIdade(a.idade), a.peso||'', nomeManejo(a.manejoId)||'', (a.obs||'').replace(/[\r\n]+/g,' '), new Date(a.data).toLocaleString('pt-BR')]);
+    linhas.push([area==='corte'?'Corte':'Reproducao', a.brinco, labelSexo(a.sexo), a.raca, a.categoria||'', labelIdade(a.idade), a.peso||'', nomeManejo(a.manejoId)||'', (a.obs||'').replace(/[\r\n]+/g,' '), new Date(a.data).toLocaleString('pt-BR')]);
   });
   const csv='﻿'+linhas.map(l=>l.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
@@ -733,17 +738,20 @@ function exportarExcel(){
   // ── Aba 1: Rebanho — uma linha por animal DA ÁREA ATIVA, valores por extenso ──
   const doArq = animaisDaArea();
   const rotuloArea = area==='corte' ? 'Corte' : 'Reprodução';
-  const linhas = [...doArq].sort((a,b)=>a.data-b.data).map(a=>({
+  const linhas = [...doArq].sort((a,b)=>a.data-b.data).map(a=>{
+    const o={
     'Área':             rotuloArea,
     'Brinco':           a.brinco,
     'Sexo':             labelSexo(a.sexo),
-    'Raça':             a.raca,
+    'Raça':             a.raca};
+    if(area==='reproducao') o['Categoria']=a.categoria||'';
+    return Object.assign(o,{
     'Idade (categoria)':labelIdade(a.idade),
     'Peso atual (kg)':  a.peso || '',
     'Manejo':           nomeManejo(a.manejoId) || '',
     'Observação':       a.obs || '',
     'Data de cadastro': new Date(a.data).toLocaleString('pt-BR')
-  }));
+  });});
   const ws = XLSX.utils.json_to_sheet(linhas);
   ws['!cols'] = [{wch:11},{wch:10},{wch:8},{wch:10},{wch:18},{wch:14},{wch:22},{wch:42},{wch:18}];
   XLSX.utils.book_append_sheet(wb, ws, 'Rebanho');
@@ -783,6 +791,7 @@ function exportarExcel(){
     ['POR FAIXA DE IDADE', ''],
     ...IDADES.map(i=>[i.l, conta(a=>a.idade===i.v)]),
     ['', ''],
+    ...(area==='reproducao' ? [['POR CATEGORIA',''], ...CATEGORIAS.map(c=>[c, conta(a=>a.categoria===c)]), ['','']] : []),
     ['POR MANEJO', ''],
     ...manejosDaArea().map(m=>[m.nome, conta(a=>a.manejoId===m.id)]),
     ...(conta(a=>!a.manejoId||!manejos.some(m=>m.id===a.manejoId)) ? [['Sem manejo', conta(a=>!a.manejoId||!manejos.some(m=>m.id===a.manejoId))]] : []),
@@ -850,9 +859,11 @@ async function importarPlanilha(files){
       const idadeTxt = String(l['Idade (categoria)'] ?? l['Idade'] ?? '').trim();
       const idadeObj = IDADES.find(x=>x.l===idadeTxt || x.v===idadeTxt);
       const idade = idadeObj ? idadeObj.v : '';
+      const catTxt = String(l['Categoria'] ?? '').trim().toLowerCase();
+      const categoria = catTxt.startsWith('prim') ? 'Primípara' : (catTxt.startsWith('mult') ? 'Multípara' : (catTxt.startsWith('vaca') ? 'Vaca' : ''));
       const peso = parseInt(l['Peso atual (kg)'] ?? l['Peso (kg)'] ?? '', 10) || null;
       rebanho.push({
-        id: base+i, area: areaLinha, brinco, sexo, raca, idade, peso,
+        id: base+i, area: areaLinha, brinco, sexo, raca, categoria, idade, peso,
         pesagens: peso ? [{peso, data}] : [],
         manejoId,
         obs: String(l['Observação'] ?? l['Observacao'] ?? '').trim(),
@@ -893,7 +904,7 @@ function novoId(){
 // ── Assistente passo a passo ──
 function novoAnimal(){
   garantirManejoAtual();   // o manejo do dia já aparece no assistente
-  w={ brinco:'', sexo:'', raca:'', idade:'', peso:'', passo:0, seq:passosAtivos() };
+  w={ brinco:'', sexo:'', raca:'', categoria:'', idade:'', peso:'', passo:0, seq:passosAtivos() };
   document.getElementById('telaHome').classList.remove('ativa');
   document.getElementById('telaCad').classList.add('ativa');
   renderPasso();
@@ -921,6 +932,7 @@ function renderSteps(){
   if(w.brinco) partes.push(`<span class="chip">Nº ${w.brinco}</span>`);
   if(w.sexo)   partes.push(`<span class="chip">${labelSexo(w.sexo)}</span>`);
   if(w.raca)   partes.push(`<span class="chip">${w.raca}</span>`);
+  if(w.categoria) partes.push(`<span class="chip">${w.categoria}</span>`);
   if(w.idade)  partes.push(`<span class="chip">${w.idade==='36+'?'+36m':w.idade+'m'}</span>`);
   if(w.peso)   partes.push(`<span class="chip">${w.peso} kg</span>`);
   document.getElementById('resumoWiz').innerHTML=partes.join(' ');
@@ -937,7 +949,7 @@ function renderPasso(){
   renderSteps();
   const passo=w.seq[w.passo];
   const body=document.getElementById('wizBody');
-  const titulos={brinco:'Número do brinco',sexo:'Sexo do animal',raca:'Raça',idade:'Idade',peso:'Peso do animal',obs:'Observação'};
+  const titulos={brinco:'Número do brinco',sexo:'Sexo do animal',raca:'Raça',categoria:'Categoria',idade:'Idade',peso:'Peso do animal',obs:'Observação'};
   document.getElementById('wizTitulo').textContent=titulos[passo];
 
   if(passo==='brinco'){
@@ -970,6 +982,13 @@ function renderPasso(){
       <div style="display:grid;gap:14px">
         <button class="opt g" onclick="escolher('raca','Nelore')">Nelore</button>
         <button class="opt g" onclick="escolher('raca','Cruzado')">Cruzado</button>
+      </div>`;
+  }
+  else if(passo==='categoria'){
+    body.innerHTML=`
+      <div class="hint">Categoria da matriz</div>
+      <div style="display:grid;gap:14px">
+        ${CATEGORIAS.map(c=>`<button class="opt g" onclick="escolher('categoria','${c}')">${c}</button>`).join('')}
       </div>`;
   }
   else if(passo==='idade'){
@@ -1115,7 +1134,7 @@ let _editId=null, _ed=null;
 function abrirEditar(id){
   const a=rebanho.find(x=>x.id===id); if(!a) return;
   _editId=id;
-  _ed={sexo:a.sexo, raca:a.raca, idade:a.idade};
+  _ed={sexo:a.sexo, raca:a.raca, idade:a.idade, categoria:a.categoria||''};
   document.getElementById('editarTitulo').textContent='✏️ '+(a.brinco?'Editar brinco '+a.brinco:'Editar animal sem brinco');
   document.getElementById('editarBody').innerHTML=`
     <div class="ed-label">Número do brinco</div>
@@ -1131,6 +1150,11 @@ function abrirEditar(id){
       <button class="ed-opt" id="edRacaNelore" onclick="edSel('raca','Nelore')">Nelore</button>
       <button class="ed-opt" id="edRacaCruzado" onclick="edSel('raca','Cruzado')">Cruzado</button>
     </div>
+    ${areaDe(a)==='reproducao'?`
+    <div class="ed-label">Categoria</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px" id="edCategorias">
+      ${CATEGORIAS.map(c=>`<button class="ed-opt" data-cat="${c}" onclick="edSel('categoria','${c}')">${c}</button>`).join('')}
+    </div>`:''}
     <div class="ed-label">Idade</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="edIdades">
       ${IDADES.map(i=>`<button class="ed-opt" data-idade="${i.v}" onclick="edSel('idade','${i.v}')">${i.l}</button>`).join('')}
@@ -1153,6 +1177,7 @@ function edMarcar(){
   document.getElementById('edRacaNelore').className='ed-opt'+(_ed.raca==='Nelore'?' sel':'');
   document.getElementById('edRacaCruzado').className='ed-opt'+(_ed.raca==='Cruzado'?' sel':'');
   document.querySelectorAll('#edIdades .ed-opt').forEach(b=>b.className='ed-opt'+(b.dataset.idade===_ed.idade?' sel':''));
+  document.querySelectorAll('#edCategorias .ed-opt').forEach(b=>b.className='ed-opt'+(b.dataset.cat===_ed.categoria?' sel':''));
 }
 function fecharEditar(){ document.getElementById('modalEditar').classList.remove('visivel'); _editId=null; _ed=null; }
 function salvarEdicao(){
@@ -1164,6 +1189,7 @@ function salvarEdicao(){
   }
   a.brinco=brinco;
   a.sexo=_ed.sexo; a.raca=_ed.raca; a.idade=_ed.idade;
+  if(areaDe(a)==='reproducao') a.categoria=_ed.categoria||'';
   const man=document.getElementById('edManejo').value;
   a.manejoId = man ? parseInt(man,10) : null;
   a.obs=document.getElementById('edObs').value.trim();
@@ -1182,7 +1208,7 @@ function mostrarObs(){
 function salvarAnimal(){
   const campo=document.getElementById('obsTexto');
   rebanho.push({
-    id:novoId(), area, brinco:w.brinco, sexo:w.sexo, raca:w.raca, idade:w.idade,
+    id:novoId(), area, brinco:w.brinco, sexo:w.sexo, raca:w.raca, categoria:w.categoria||'', idade:w.idade,
     peso:w.peso?parseInt(w.peso,10):null,
     pesagens:w.peso?[{peso:parseInt(w.peso,10), data:Date.now()}]:[],
     manejoId: garantirManejoAtual(),
@@ -1191,7 +1217,7 @@ function salvarAnimal(){
   salvar();
   toast(w.brinco ? '✓ Animal '+w.brinco+' cadastrado' : '✓ Animal cadastrado (sem brinco)');
   // Vai direto para o próximo animal (assistente limpo, mesma sequência do manejo)
-  w={ brinco:'', sexo:'', raca:'', idade:'', peso:'', passo:0, seq:w.seq };
+  w={ brinco:'', sexo:'', raca:'', categoria:'', idade:'', peso:'', passo:0, seq:w.seq };
   renderPasso();
   window.scrollTo(0,0);
 }
@@ -1307,7 +1333,7 @@ async function empurrarNuvem(){
   }
   try{
     await docNuvem().set({
-      rebanho: rebanho.map(a=>({id:a.id,area:areaDe(a),brinco:a.brinco,sexo:a.sexo,raca:a.raca,idade:a.idade,peso:a.peso||null,pesagens:(a.pesagens||[]).map(p=>({peso:p.peso,data:p.data})),manejoId:a.manejoId||null,obs:a.obs||'',data:a.data})),
+      rebanho: rebanho.map(a=>({id:a.id,area:areaDe(a),brinco:a.brinco,sexo:a.sexo,raca:a.raca,categoria:a.categoria||'',idade:a.idade,peso:a.peso||null,pesagens:(a.pesagens||[]).map(p=>({peso:p.peso,data:p.data})),manejoId:a.manejoId||null,obs:a.obs||'',data:a.data})),
       manejos: manejos.map(m=>({id:m.id,area:areaDe(m),nome:m.nome,data:m.data,campos:Array.isArray(m.campos)?m.campos:null,semBrinco:!!m.semBrinco})),
       manejosExcluidos: manejosExcluidos.slice(-200),
       excluidos: excluidos.slice(-500),

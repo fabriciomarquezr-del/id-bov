@@ -53,8 +53,13 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
   brinco, manejo automático, Excel/CSV (coluna "Área", arquivo
   id-bov-corte-... / id-bov-reproducao-...), importação (coluna Área roteia;
   sem ela usa a área ativa). Nuvem/cofre levam `area` nos objetos.
-- Corte segue o fluxo padrão; alterações específicas da REPRODUÇÃO serão
-  definidas pelo usuário (aguardando especificação).
+- Corte segue o fluxo padrão. Reprodução (v17) tem o campo extra
+  **Categoria** (`a.categoria`: 'Primípara' | 'Multípara' | 'Vaca'; vazio se
+  pulado) — passo do assistente entre Raça e Idade, toggle no painel do
+  manejo, pílulas na edição, cartão, Excel (coluna Categoria + POR CATEGORIA
+  no Resumo), CSV, importação (normaliza prim*/mult*/vaca*) e nuvem.
+  `camposDefDaArea()` esconde o campo na área de Corte. Mais alterações da
+  Reprodução podem vir (usuário especifica aos poucos).
 
 ## Campos por manejo (painel do dia — v12)
 
