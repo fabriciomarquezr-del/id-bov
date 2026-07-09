@@ -41,6 +41,17 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
 - Edição propaga p/ nuvem: na mesclagem o lado local vence nos campos
   simples (`Object.assign({}, nuvem, local)`).
 
+## Ícones de touro e vaca (v22)
+
+- `ico('bull')` = cabeça de TOURO (silhueta cheia, fill currentColor, olho
+  vazado por fill-rule evenodd) → área de CORTE. `ico('cow')` = cabeça de VACA
+  (traço, stroke currentColor) → área de REPRODUÇÃO. Interpretações originais
+  em SVG das imagens de referência (as fotos eram stock com marca d'água —
+  não reproduzidas). Usados no chip do cabeçalho (por área), tela de escolha
+  de área, cartão de animal sem sexo, logo do header, página offline do SW e
+  cabeçalho do admin. Substituíram o antigo `ico('boi')` (mantido no dict mas
+  sem uso).
+
 ## Ícones minimalistas (v19)
 
 - Sem emojis na interface (pedido do usuário): helper `ico(nome, tamanho)`
