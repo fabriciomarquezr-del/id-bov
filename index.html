@@ -246,8 +246,7 @@
     <input id="cfgNome" type="text" placeholder="Ex.: Desmama, Vacinação lote 3"
       style="width:100%;border:2px solid var(--border);border-radius:12px;padding:12px;font-family:inherit;font-size:16px;font-weight:700;outline:none;background:#fff;color:var(--text)">
     <div class="ed-label">O que você vai preencher hoje?</div>
-    <div style="font-size:0.78rem;color:var(--text-2);line-height:1.45;margin-bottom:10px">O <b>número do brinco</b> é sempre pedido. Desligue o que não for usar — o cadastro fica mais rápido.</div>
-    <div class="cfg-campo sel" style="cursor:default;opacity:.75"><span>Número do brinco</span><span class="estado">🔒 Sempre</span></div>
+    <div style="font-size:0.78rem;color:var(--text-2);line-height:1.45;margin-bottom:10px">Desligue o que não for usar — o cadastro fica mais rápido. Pelo menos uma informação precisa ficar ligada.</div>
     <div id="cfgCampos"></div>
     <button class="btn-nuvem-acao" style="margin-top:10px" onclick="salvarManejoCfg()">✔ Salvar</button>
     <button class="btn-nuvem-sec" style="margin-bottom:0" onclick="fecharManejoCfg()">Cancelar</button>
@@ -297,10 +296,12 @@ const IDADES = [
   {v:'25-36', l:'25 a 36 meses'},
   {v:'36+',   l:'Acima de 36 meses'}
 ];
-// Sequência de passos do cadastro: brinco + os campos escolhidos no manejo ativo
+// Sequência de passos do cadastro: os campos escolhidos no manejo ativo
+// (brinco entra só se o manejo não o desligou)
 function passosAtivos(){
   const m=manejos.find(x=>x.id===manejoAtualId);
-  return ['brinco', ...camposDoManejo(m)];
+  const base=camposDoManejo(m);
+  return (m && m.semBrinco) ? base.slice() : ['brinco', ...base];
 }
 
 // ── Persistência ──
@@ -428,23 +429,28 @@ const CAMPOS_TODOS=CAMPOS_DEF.map(c=>c.v);
 function camposDoManejo(m){ return (m && Array.isArray(m.campos)) ? m.campos : CAMPOS_TODOS.slice(); }
 function rotuloCampo(v){ const c=CAMPOS_DEF.find(x=>x.v===v); return c?c.l.split(' (')[0]:v; }
 
-let _cfgId=null, _cfgCampos=null;
+let _cfgId=null, _cfgCampos=null, _cfgBrinco=true;
 function novoManejo(){ abrirManejoCfg(null); }
 function abrirManejoCfg(id){
   _cfgId=id;
   const m=id?manejos.find(x=>x.id===id):null;
   _cfgCampos = m ? camposDoManejo(m).slice() : CAMPOS_TODOS.slice();
+  _cfgBrinco = m ? !m.semBrinco : true;
   document.getElementById('cfgTitulo').textContent = m ? '📋 Editar manejo' : '📋 Novo manejo';
   document.getElementById('cfgNome').value = m ? m.nome : 'Manejo '+new Date().toLocaleDateString('pt-BR');
   renderCfgCampos();
   document.getElementById('modalManejoCfg').classList.add('visivel');
 }
 function renderCfgCampos(){
-  document.getElementById('cfgCampos').innerHTML = CAMPOS_DEF.map(c=>`
+  document.getElementById('cfgCampos').innerHTML = `
+    <button class="cfg-campo${_cfgBrinco?' sel':''}" onclick="cfgToggleBrinco()">
+      <span>Número do brinco</span><span class="estado">${_cfgBrinco?'✓ Vai preencher':'○ Pular'}</span>
+    </button>` + CAMPOS_DEF.map(c=>`
     <button class="cfg-campo${_cfgCampos.includes(c.v)?' sel':''}" onclick="cfgToggle('${c.v}')">
       <span>${c.l}</span><span class="estado">${_cfgCampos.includes(c.v)?'✓ Vai preencher':'○ Pular'}</span>
     </button>`).join('');
 }
+function cfgToggleBrinco(){ _cfgBrinco=!_cfgBrinco; renderCfgCampos(); }
 function cfgToggle(v){
   const i=_cfgCampos.indexOf(v);
   if(i>=0) _cfgCampos.splice(i,1);
@@ -453,13 +459,14 @@ function cfgToggle(v){
 }
 function fecharManejoCfg(){ document.getElementById('modalManejoCfg').classList.remove('visivel'); _cfgId=null; _cfgCampos=null; }
 function salvarManejoCfg(){
+  if(!_cfgBrinco && !_cfgCampos.length){ toast('⚠️ Escolha pelo menos uma informação para preencher'); return; }
   const nome=document.getElementById('cfgNome').value.trim() || ('Manejo '+new Date().toLocaleDateString('pt-BR'));
   if(_cfgId){
     const m=manejos.find(x=>x.id===_cfgId); if(!m){ fecharManejoCfg(); return; }
-    m.nome=nome; m.campos=_cfgCampos.slice();
+    m.nome=nome; m.campos=_cfgCampos.slice(); m.semBrinco=!_cfgBrinco;
     toast('📋 Manejo atualizado');
   } else {
-    const m={id:Date.now(), nome, data:Date.now(), campos:_cfgCampos.slice()};
+    const m={id:Date.now(), nome, data:Date.now(), campos:_cfgCampos.slice(), semBrinco:!_cfgBrinco};
     manejos.push(m); manejoAtualId=m.id;
     filtroManejoId=null; abaHome='animais';
     toast('📋 Manejo "'+nome+'" iniciado — os próximos cadastros entram nele', 5000);
@@ -537,7 +544,7 @@ function renderHome(){
     <div class="animal-card">
       <div class="animal-sexo" style="background:${a.sexo==='F'?'rgba(221,82,55,.10)':(a.sexo==='M'?'var(--green-light)':'rgba(18,38,26,.06)')};color:${a.sexo==='F'?'var(--red)':(a.sexo==='M'?'var(--green-2)':'var(--text-3)')}">${a.sexo==='F'?'♀':(a.sexo==='M'?'♂':'🐄')}</div>
       <div style="flex:1;min-width:0">
-        <div class="mono" style="font-weight:700;font-size:1.2rem;color:var(--green-deep)">${a.brinco}</div>
+        <div class="mono" style="font-weight:700;font-size:1.2rem;color:${a.brinco?'var(--green-deep)':'var(--text-3)'}">${a.brinco||'— s/ brinco'}</div>
         <div style="font-size:0.78rem;color:var(--text-2);font-weight:600">${[labelSexo(a.sexo), a.raca, labelIdade(a.idade), a.peso?`⚖️ ${a.peso} kg`:''].filter(Boolean).join(' · ') || '—'}</div>
         ${filtroManejoId===null && a.manejoId && nomeManejo(a.manejoId)?`<div style="font-size:0.72rem;color:var(--text-3);margin-top:2px">📋 ${escaparHTML(nomeManejo(a.manejoId))}</div>`:''}
         ${a.obs?`<div style="font-size:0.76rem;color:var(--text-3);margin-top:2px">📝 ${escaparHTML(a.obs)}</div>`:''}
@@ -563,7 +570,7 @@ function renderManejos(){
             ${ativo?'<span style="background:var(--green);color:#fff;font-size:0.62rem;font-weight:800;border-radius:999px;padding:2px 8px;margin-left:5px;vertical-align:2px">ATIVO</span>':''}
           </div>
           <div style="font-size:0.75rem;color:var(--text-3);margin-top:2px">${new Date(m.data).toLocaleDateString('pt-BR')} · ${bichos.length} ${bichos.length===1?'animal':'animais'} · ♂ ${bichos.filter(a=>a.sexo==='M').length} · ♀ ${bichos.filter(a=>a.sexo==='F').length}</div>
-          <div style="font-size:0.7rem;color:var(--text-3);margin-top:2px">Preenche: ${['Brinco', ...camposDoManejo(m).map(rotuloCampo)].join(' · ')}</div>
+          <div style="font-size:0.7rem;color:var(--text-3);margin-top:2px">Preenche: ${[...(m.semBrinco?[]:['Brinco']), ...camposDoManejo(m).map(rotuloCampo)].join(' · ')}</div>
         </div>
       </div>
       <div style="display:flex;gap:7px;margin-top:10px">
@@ -588,13 +595,13 @@ function escaparHTML(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&l
 
 function excluir(id){
   const a=rebanho.find(x=>x.id===id); if(!a) return;
-  if(!confirm('Excluir o animal de brinco '+a.brinco+'?')) return;
+  if(!confirm(a.brinco ? 'Excluir o animal de brinco '+a.brinco+'?' : 'Excluir este animal sem brinco?')) return;
   rebanho=rebanho.filter(x=>x.id!==id);
   // Lápide: registra a exclusão para a nuvem não "ressuscitar" o animal ao mesclar
   if(!excluidos.includes(id)) excluidos.push(id);
   salvarExcluidos();
   salvar(); renderHome();
-  toast('Animal '+a.brinco+' excluído');
+  toast(a.brinco ? 'Animal '+a.brinco+' excluído' : 'Animal excluído');
 }
 
 function exportarCSV(){
@@ -767,6 +774,15 @@ async function importarPlanilha(files){
   }
 }
 
+// Id único para novos animais (nunca repete, mesmo salvando no mesmo milissegundo)
+let _ultimoId=0;
+function novoId(){
+  let id=Date.now();
+  if(id<=_ultimoId) id=_ultimoId+1;
+  _ultimoId=id;
+  return id;
+}
+
 // ── Assistente passo a passo ──
 function novoAnimal(){
   garantirManejoAtual();   // o manejo do dia já aparece no assistente
@@ -932,7 +948,7 @@ let _pesagemId=null, _pesagemVal='';
 function abrirPesagem(id){
   const a=rebanho.find(x=>x.id===id); if(!a) return;
   _pesagemId=id; _pesagemVal='';
-  document.getElementById('pesagemTitulo').textContent='⚖️ Brinco '+a.brinco;
+  document.getElementById('pesagemTitulo').textContent='⚖️ '+(a.brinco?'Brinco '+a.brinco:'Animal sem brinco');
   renderHistPesagem(a);
   atualizarVisorPesagem();
   document.getElementById('modalPesagem').classList.add('visivel');
@@ -980,7 +996,7 @@ function confirmarPesagem(){
   salvar(); renderHome();
   const dif = anterior===null ? '' :
     (peso-anterior>=0 ? ` (+${peso-anterior} kg desde a última)` : ` (${peso-anterior} kg desde a última)`);
-  toast('⚖️ Brinco '+a.brinco+': '+peso+' kg'+dif, 4500);
+  toast('⚖️ '+(a.brinco?'Brinco '+a.brinco:'Animal')+': '+peso+' kg'+dif, 4500);
   _pesagemVal='';
   renderHistPesagem(a);
   atualizarVisorPesagem();
@@ -993,7 +1009,7 @@ function abrirEditar(id){
   const a=rebanho.find(x=>x.id===id); if(!a) return;
   _editId=id;
   _ed={sexo:a.sexo, raca:a.raca, idade:a.idade};
-  document.getElementById('editarTitulo').textContent='✏️ Editar brinco '+a.brinco;
+  document.getElementById('editarTitulo').textContent='✏️ '+(a.brinco?'Editar brinco '+a.brinco:'Editar animal sem brinco');
   document.getElementById('editarBody').innerHTML=`
     <div class="ed-label">Número do brinco</div>
     <input id="edBrinco" type="text" inputmode="numeric" pattern="[0-9]*" value="${escaparHTML(a.brinco)}"
@@ -1035,16 +1051,17 @@ function fecharEditar(){ document.getElementById('modalEditar').classList.remove
 function salvarEdicao(){
   const a=rebanho.find(x=>x.id===_editId); if(!a) return;
   const brinco=document.getElementById('edBrinco').value.trim();
-  if(!brinco){ toast('⚠️ O brinco não pode ficar vazio'); return; }
-  if(!/^\d+$/.test(brinco)){ toast('⚠️ O brinco deve ter só números'); return; }
-  if(rebanho.some(x=>x.brinco===brinco && x.id!==a.id)){ toast('⚠️ Já existe outro animal com o brinco '+brinco, 4500); return; }
+  if(brinco){
+    if(!/^\d+$/.test(brinco)){ toast('⚠️ O brinco deve ter só números'); return; }
+    if(rebanho.some(x=>x.brinco===brinco && x.id!==a.id)){ toast('⚠️ Já existe outro animal com o brinco '+brinco, 4500); return; }
+  }
   a.brinco=brinco;
   a.sexo=_ed.sexo; a.raca=_ed.raca; a.idade=_ed.idade;
   const man=document.getElementById('edManejo').value;
   a.manejoId = man ? parseInt(man,10) : null;
   a.obs=document.getElementById('edObs').value.trim();
   salvar(); renderHome(); fecharEditar();
-  toast('✏️ Brinco '+brinco+' atualizado');
+  toast(brinco ? '✏️ Brinco '+brinco+' atualizado' : '✏️ Animal atualizado');
 }
 
 // Escolha com avanço automático para o próximo passo
@@ -1058,14 +1075,14 @@ function mostrarObs(){
 function salvarAnimal(){
   const campo=document.getElementById('obsTexto');
   rebanho.push({
-    id:Date.now(), brinco:w.brinco, sexo:w.sexo, raca:w.raca, idade:w.idade,
+    id:novoId(), brinco:w.brinco, sexo:w.sexo, raca:w.raca, idade:w.idade,
     peso:w.peso?parseInt(w.peso,10):null,
     pesagens:w.peso?[{peso:parseInt(w.peso,10), data:Date.now()}]:[],
     manejoId: garantirManejoAtual(),
     obs:campo?campo.value.trim():'', data:Date.now()
   });
   salvar();
-  toast('✓ Animal '+w.brinco+' cadastrado');
+  toast(w.brinco ? '✓ Animal '+w.brinco+' cadastrado' : '✓ Animal cadastrado (sem brinco)');
   // Vai direto para o próximo animal (assistente limpo, mesma sequência do manejo)
   w={ brinco:'', sexo:'', raca:'', idade:'', peso:'', passo:0, seq:w.seq };
   renderPasso();
@@ -1133,7 +1150,7 @@ async function puxarEMesclar(){
     // Une os manejos da nuvem com os do aparelho (nuvem atualiza nome/campos dos já existentes)
     ((nuvem&&nuvem.manejos)||[]).forEach(m=>{
       const ex=manejos.find(x=>x.id===m.id);
-      if(ex){ ex.nome=m.nome; if(Array.isArray(m.campos)) ex.campos=m.campos; }
+      if(ex){ ex.nome=m.nome; if(Array.isArray(m.campos)) ex.campos=m.campos; ex.semBrinco=!!m.semBrinco; }
       else manejos.push(m);
     });
     salvarManejos();
@@ -1180,7 +1197,7 @@ async function empurrarNuvem(){
   try{
     await docNuvem().set({
       rebanho: rebanho.map(a=>({id:a.id,brinco:a.brinco,sexo:a.sexo,raca:a.raca,idade:a.idade,peso:a.peso||null,pesagens:(a.pesagens||[]).map(p=>({peso:p.peso,data:p.data})),manejoId:a.manejoId||null,obs:a.obs||'',data:a.data})),
-      manejos: manejos.map(m=>({id:m.id,nome:m.nome,data:m.data,campos:Array.isArray(m.campos)?m.campos:null})),
+      manejos: manejos.map(m=>({id:m.id,nome:m.nome,data:m.data,campos:Array.isArray(m.campos)?m.campos:null,semBrinco:!!m.semBrinco})),
       excluidos: excluidos.slice(-500),
       email: _email,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()

@@ -46,7 +46,13 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
 - Cada manejo tem `campos`: subconjunto de `['sexo','raca','idade','peso','obs']`
   (`camposDoManejo()` devolve TODOS quando ausente — manejos antigos/automáticos).
 - Criar/editar manejo = modal `modalManejoCfg` (nome + toggles `.cfg-campo`);
-  substituiu os `prompt()`. Brinco é sempre obrigatório (linha travada 🔒).
+  substituiu os `prompt()`. Desde a v13 o BRINCO também é opcional
+  (`m.semBrinco:true` desliga; flag separada p/ compatibilidade com manejos
+  antigos) — permite pesagem de lote sem identificação. Validação: pelo menos
+  um campo ligado. Animal sem brinco: cartão mostra "— s/ brinco", edição
+  aceita brinco vazio (pode ganhar número depois), textos tratam vazio.
+- `novoId()` gera ids de animais sem colisão (Date.now podia repetir em
+  cadastros rápidos — dois animais com mesmo id, exclusão apagava ambos).
 - Assistente: `w.seq = passosAtivos()` (brinco + campos do manejo ativo);
   `avancarPasso()` salva o animal ao fim da sequência (obs desligada ⇒ o
   último passo salva direto). Campos pulados ficam `''`/`null`; cartão usa
