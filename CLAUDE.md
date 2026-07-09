@@ -41,6 +41,25 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
 - Edição propaga p/ nuvem: na mesclagem o lado local vence nos campos
   simples (`Object.assign({}, nuvem, local)`).
 
+## Propriedades (nível principal — v18)
+
+- `propriedades=[{id,nome,proprietario,contato,data}]` (localStorage
+  `idbov-props-v1`; ativa em `idbov-prop-atual-v1`; lápides em
+  `idbov-props-excluidas-v1`). Animal e manejo ganham `propId`
+  (null = grupo "Geral", onde vivem os dados antigos).
+- Hierarquia: Propriedade → (área) → Manejos → Animais. TODO escopo é
+  área+propriedade ativas (`animaisDaArea()`/`manejosDaArea()` filtram ambos).
+- UI: barra 🏡 no topo da home abre `modalProps` (lista com dono/contato/
+  contagem, Usar/✏️/🗑, card "Geral") e `modalPropCfg` (nome, proprietário,
+  contato — nome obrigatório). Criar propriedade já a seleciona.
+- Excluir propriedade: animais/manejos dela vão p/ "Geral" (propId=null);
+  lápides sincronizadas (nuvem+cofre) como manejos.
+- Excel/CSV: coluna "Propriedade" + linha no Resumo; exporta o contexto
+  ativo. Importação: coluna "Propriedade" roteia (cria por nome; "Geral"→null;
+  ausente→ativa); dedup de brinco por área+propriedade; manejo por
+  nome+área+propriedade. Edição do animal tem select de Propriedade (mover
+  desvincula manejo de outra propriedade).
+
 ## Áreas: Corte × Reprodução (v16)
 
 - Duas áreas independentes no mesmo app: `area` = 'corte' | 'reproducao'

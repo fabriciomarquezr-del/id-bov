@@ -9,7 +9,7 @@
 //  • Pré-cache com {cache:'reload'} — fura o cache HTTP do Safari (era a
 //    causa das atualizações nunca chegarem ao iPhone).
 // ══════════════════════════════════════════════
-const CACHE = 'id-bov-v17';
+const CACHE = 'id-bov-v18';
 
 const PRE_CACHE = [
   './',

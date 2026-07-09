@@ -205,6 +205,15 @@
 
 <!-- ══ TELA: LISTA DO REBANHO ══ -->
 <div class="tela ativa" id="telaHome">
+  <!-- Seletor de propriedade (nível principal de organização) -->
+  <button onclick="abrirProps()" style="width:100%;display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:11px 14px;margin-bottom:12px;cursor:pointer;font-family:inherit;box-shadow:var(--shadow-sm);-webkit-tap-highlight-color:transparent">
+    <span style="font-size:1.25rem">🏡</span>
+    <span style="flex:1;text-align:left;min-width:0">
+      <span style="font-size:0.64rem;font-weight:800;color:var(--text-3);text-transform:uppercase;letter-spacing:.6px;display:block">Propriedade</span>
+      <b id="propNomeBar" style="font-size:0.95rem;color:var(--green-deep);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Geral</b>
+    </span>
+    <span style="color:var(--text-3);font-weight:800">▾</span>
+  </button>
   <button class="btn-grande" onclick="novoAnimal()">
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
     Cadastrar animal
@@ -272,6 +281,34 @@
       <h3>Bovinos de REPRODUÇÃO</h3>
       <p>Matrizes, touros e cria</p>
     </button>
+  </div>
+</div>
+
+<!-- ══ MODAL: PROPRIEDADES (lista/seleção) ══ -->
+<div class="overlay" id="modalProps" onclick="if(event.target===this)fecharProps()">
+  <div class="caixa" style="max-height:88vh;overflow-y:auto">
+    <h3>🏡 Propriedades</h3>
+    <button class="btn-nuvem-sec" style="border-color:rgba(27,122,61,.45);background:var(--green-light);color:var(--green-2);font-weight:800" onclick="abrirPropCfg(null)">➕ Nova propriedade</button>
+    <div id="propsLista"></div>
+    <button class="btn-nuvem-sec" style="margin-bottom:0" onclick="fecharProps()">Fechar</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: CADASTRO/EDIÇÃO DE PROPRIEDADE ══ -->
+<div class="overlay" id="modalPropCfg" onclick="if(event.target===this)fecharPropCfg()">
+  <div class="caixa">
+    <h3 id="propCfgTitulo">🏡 Nova propriedade</h3>
+    <div class="ed-label">Nome da propriedade</div>
+    <input id="propNomeInput" type="text" placeholder="Ex.: Fazenda Santa Fé"
+      style="width:100%;border:2px solid var(--border);border-radius:12px;padding:12px;font-family:inherit;font-size:16px;font-weight:700;outline:none;background:#fff;color:var(--text)">
+    <div class="ed-label">Nome do proprietário</div>
+    <input id="propDonoInput" type="text" placeholder="Ex.: João da Silva"
+      style="width:100%;border:2px solid var(--border);border-radius:12px;padding:12px;font-family:inherit;font-size:16px;outline:none;background:#fff;color:var(--text)">
+    <div class="ed-label">Contato</div>
+    <input id="propContatoInput" type="tel" placeholder="Ex.: (67) 99999-0000"
+      style="width:100%;border:2px solid var(--border);border-radius:12px;padding:12px;font-family:inherit;font-size:16px;outline:none;background:#fff;color:var(--text)">
+    <button class="btn-nuvem-acao" style="margin-top:16px" onclick="salvarPropCfg()">✔ Salvar</button>
+    <button class="btn-nuvem-sec" style="margin-bottom:0" onclick="fecharPropCfg()">Cancelar</button>
   </div>
 </div>
 
@@ -367,7 +404,7 @@ async function salvarCofre(){
   try{
     const db=await _abrirIDB(); if(!db) return;
     db.transaction(IDB_STORE,'readwrite').objectStore(IDB_STORE)
-      .put(JSON.parse(JSON.stringify({rebanho, excluidos, manejos, manejosExcluidos, quando:Date.now()})),'backup');
+      .put(JSON.parse(JSON.stringify({rebanho, excluidos, manejos, manejosExcluidos, propriedades, propriedadesExcluidas, quando:Date.now()})),'backup');
   }catch(e){}
 }
 async function lerCofre(){
@@ -400,11 +437,15 @@ async function recuperarDoCofre(){
     });
     rebanho=Object.values(porId).filter(a=>!excTot.includes(a.id)).sort((a,b)=>a.data-b.data);
     excluidos=excTot;
-    // Recupera também os manejos que só existirem no cofre (respeitando exclusões)
+    // Recupera também manejos e propriedades que só existirem no cofre (respeitando exclusões)
     manejosExcluidos = [...new Set([...manejosExcluidos, ...(cofre.manejosExcluidos||[])])];
     (cofre.manejos||[]).forEach(m=>{ if(!manejos.some(x=>x.id===m.id)) manejos.push(m); });
     manejos = manejos.filter(m=>!manejosExcluidos.includes(m.id));
     salvarManejos();
+    propriedadesExcluidas = [...new Set([...propriedadesExcluidas, ...(cofre.propriedadesExcluidas||[])])];
+    (cofre.propriedades||[]).forEach(pr=>{ if(!propriedades.some(x=>x.id===pr.id)) propriedades.push(pr); });
+    propriedades = propriedades.filter(pr=>!propriedadesExcluidas.includes(pr.id));
+    salvarProps();
     normalizarRebanho();
     if(rebanho.length>antes){
       salvarExcluidos(); salvar(); renderHome();
@@ -432,8 +473,8 @@ function salvar(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(rebanho)); }
 const AREA_KEY='idbov-area-v1';
 let area='corte';
 function areaDe(x){ return x && x.area==='reproducao' ? 'reproducao' : 'corte'; }
-function animaisDaArea(){ return rebanho.filter(a=>areaDe(a)===area); }
-function manejosDaArea(){ return manejos.filter(m=>areaDe(m)===area); }
+function animaisDaArea(){ return rebanho.filter(a=>areaDe(a)===area && propDe(a)===propriedadeAtualId); }
+function manejosDaArea(){ return manejos.filter(m=>areaDe(m)===area && propDe(m)===propriedadeAtualId); }
 function carregarArea(){ try{ const v=localStorage.getItem(AREA_KEY); if(v==='reproducao'||v==='corte') area=v; }catch(e){} }
 function aplicarArea(){
   document.body.classList.toggle('area-corte', area==='corte');
@@ -454,6 +495,122 @@ function escolherArea(a){
   document.getElementById('telaArea').style.display='none';
   renderHome();
   toast(a==='corte' ? '🐂 Área de CORTE' : '🐄 Área de REPRODUÇÃO');
+}
+
+// ══════════════════════════════════════════════
+//  PROPRIEDADES — nível principal de organização
+//  Cada animal e manejo pertence a UMA propriedade (ou ao grupo "Geral").
+//  Cadastro guarda nome, proprietário e contato.
+// ══════════════════════════════════════════════
+const PROP_KEY='idbov-props-v1', PROP_ATUAL_KEY='idbov-prop-atual-v1', PROP_EXC_KEY='idbov-props-excluidas-v1';
+let propriedades=[];            // [{id, nome, proprietario, contato, data}]
+let propriedadeAtualId=null;    // null = grupo "Geral" (sem propriedade)
+let propriedadesExcluidas=[];   // lápides
+
+function propDe(x){ return x && x.propId ? x.propId : null; }
+function nomeProp(id){ const p=propriedades.find(x=>x.id===id); return p?p.nome:''; }
+function carregarProps(){
+  try{ propriedades = JSON.parse(localStorage.getItem(PROP_KEY)) || []; }catch(e){ propriedades=[]; }
+  try{ propriedadesExcluidas = JSON.parse(localStorage.getItem(PROP_EXC_KEY)) || []; }catch(e){ propriedadesExcluidas=[]; }
+  try{ propriedadeAtualId = JSON.parse(localStorage.getItem(PROP_ATUAL_KEY)); }catch(e){ propriedadeAtualId=null; }
+  if(propriedadeAtualId!==null && !propriedades.some(x=>x.id===propriedadeAtualId)) propriedadeAtualId=null;
+}
+function salvarProps(){
+  try{ localStorage.setItem(PROP_KEY, JSON.stringify(propriedades)); }catch(e){}
+  try{ localStorage.setItem(PROP_ATUAL_KEY, JSON.stringify(propriedadeAtualId)); }catch(e){}
+  try{ localStorage.setItem(PROP_EXC_KEY, JSON.stringify(propriedadesExcluidas.slice(-200))); }catch(e){}
+}
+function abrirProps(){ renderProps(); document.getElementById('modalProps').classList.add('visivel'); }
+function fecharProps(){ document.getElementById('modalProps').classList.remove('visivel'); }
+function renderProps(){
+  const el=document.getElementById('propsLista');
+  const cards=[];
+  [...propriedades].sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(pr=>{
+    const bichos=rebanho.filter(a=>propDe(a)===pr.id).length;
+    const atual=pr.id===propriedadeAtualId;
+    cards.push(`
+    <div style="background:#fff;border:1.5px solid ${atual?'rgba(27,122,61,.5)':'var(--border)'};border-radius:14px;padding:13px 14px;margin-bottom:9px">
+      <div style="font-weight:800;font-size:0.98rem;color:var(--green-deep)">🏡 ${escaparHTML(pr.nome)}
+        ${atual?'<span style="background:var(--green);color:#fff;font-size:0.62rem;font-weight:800;border-radius:999px;padding:2px 8px;margin-left:5px;vertical-align:2px">ATUAL</span>':''}
+      </div>
+      <div style="font-size:0.76rem;color:var(--text-2);margin-top:3px">${[pr.proprietario?'👤 '+escaparHTML(pr.proprietario):'', pr.contato?'📞 '+escaparHTML(pr.contato):''].filter(Boolean).join(' · ')||'<span style="color:var(--text-3)">sem dados do proprietário</span>'}</div>
+      <div style="font-size:0.73rem;color:var(--text-3);margin-top:2px">${bichos} ${bichos===1?'animal':'animais'} no total</div>
+      <div style="display:flex;gap:7px;margin-top:10px">
+        ${atual?'':`<button onclick="usarProp(${pr.id})" style="flex:1;border:1px solid rgba(27,122,61,.4);background:var(--green-light);color:var(--green-2);font-weight:700;font-size:0.78rem;padding:8px;border-radius:9px;cursor:pointer;font-family:inherit">Usar esta</button>`}
+        <button onclick="abrirPropCfg(${pr.id})" style="flex:none;border:1px solid var(--border);background:#fff;color:var(--text-2);font-weight:700;font-size:0.78rem;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit">✏️</button>
+        <button onclick="excluirProp(${pr.id})" style="flex:none;border:1px solid rgba(221,82,55,.35);background:var(--red-light);color:var(--red);font-weight:700;font-size:0.78rem;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit">🗑</button>
+      </div>
+    </div>`);
+  });
+  const geraisN=rebanho.filter(a=>propDe(a)===null).length;
+  cards.push(`
+    <div style="background:rgba(18,38,26,.04);border:1.5px ${propriedadeAtualId===null?'solid rgba(27,122,61,.5)':'dashed var(--border)'};border-radius:14px;padding:13px 14px;margin-bottom:9px">
+      <div style="font-weight:800;font-size:0.92rem;color:var(--text-2)">Geral (sem propriedade)
+        ${propriedadeAtualId===null?'<span style="background:var(--green);color:#fff;font-size:0.62rem;font-weight:800;border-radius:999px;padding:2px 8px;margin-left:5px;vertical-align:2px">ATUAL</span>':''}
+      </div>
+      <div style="font-size:0.73rem;color:var(--text-3);margin-top:2px">${geraisN} ${geraisN===1?'animal':'animais'}</div>
+      ${propriedadeAtualId===null?'':'<button onclick="usarProp(null)" style="margin-top:10px;width:100%;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:700;font-size:0.78rem;padding:8px;border-radius:9px;cursor:pointer;font-family:inherit">Usar o grupo Geral</button>'}
+    </div>`);
+  el.innerHTML=cards.join('');
+}
+function usarProp(id){
+  propriedadeAtualId=id;
+  salvarProps();
+  const da=manejosDaArea();
+  manejoAtualId = da.length ? da[da.length-1].id : null;
+  salvarManejos();
+  filtroManejoId=null;
+  fecharProps(); renderHome();
+  toast('🏡 '+(id?nomeProp(id):'Grupo Geral')+' selecionada');
+}
+let _propCfgId=null;
+function abrirPropCfg(id){
+  _propCfgId=id;
+  const pr=id?propriedades.find(x=>x.id===id):null;
+  document.getElementById('propCfgTitulo').textContent = pr ? '🏡 Editar propriedade' : '🏡 Nova propriedade';
+  document.getElementById('propNomeInput').value = pr?pr.nome:'';
+  document.getElementById('propDonoInput').value = pr?(pr.proprietario||''):'';
+  document.getElementById('propContatoInput').value = pr?(pr.contato||''):'';
+  fecharProps();
+  document.getElementById('modalPropCfg').classList.add('visivel');
+}
+function fecharPropCfg(){ document.getElementById('modalPropCfg').classList.remove('visivel'); _propCfgId=null; }
+function salvarPropCfg(){
+  const nome=document.getElementById('propNomeInput').value.trim();
+  if(!nome){ toast('⚠️ Dê um nome à propriedade'); return; }
+  const proprietario=document.getElementById('propDonoInput').value.trim();
+  const contato=document.getElementById('propContatoInput').value.trim();
+  if(_propCfgId){
+    const pr=propriedades.find(x=>x.id===_propCfgId); if(!pr){ fecharPropCfg(); return; }
+    pr.nome=nome; pr.proprietario=proprietario; pr.contato=contato;
+    toast('🏡 Propriedade atualizada');
+  } else {
+    const pr={id:Date.now(), nome, proprietario, contato, data:Date.now()};
+    propriedades.push(pr);
+    propriedadeAtualId=pr.id;
+    const da=manejosDaArea();
+    manejoAtualId = da.length ? da[da.length-1].id : null;
+    filtroManejoId=null;
+    toast('🏡 "'+nome+'" criada e selecionada');
+  }
+  salvarProps(); salvarManejos(); salvar();
+  fecharPropCfg(); renderHome();
+}
+function excluirProp(id){
+  const pr=propriedades.find(x=>x.id===id); if(!pr) return;
+  const bichos=rebanho.filter(a=>propDe(a)===id).length;
+  const msg = bichos
+    ? 'Excluir a propriedade "'+pr.nome+'"?\n\n'+(bichos===1?'O animal dela NÃO será apagado — vai':'Os '+bichos+' animais dela NÃO serão apagados — vão')+' para o grupo "Geral".'
+    : 'Excluir a propriedade "'+pr.nome+'"?';
+  if(!confirm(msg)) return;
+  rebanho.forEach(a=>{ if(a.propId===id) a.propId=null; });
+  manejos.forEach(m=>{ if(m.propId===id) m.propId=null; });
+  propriedades = propriedades.filter(x=>x.id!==id);
+  if(!propriedadesExcluidas.includes(id)) propriedadesExcluidas.push(id);
+  if(propriedadeAtualId===id) propriedadeAtualId=null;
+  salvarProps(); salvarManejos(); salvar();
+  renderProps(); renderHome();
+  toast('🗑 Propriedade "'+pr.nome+'" excluída'+(bichos?' — animais foram para o "Geral"':''), 5000);
 }
 
 // ══════════════════════════════════════════════
@@ -480,14 +637,14 @@ function salvarManejos(){
 }
 function nomeManejo(id){ const m=manejos.find(x=>x.id===id); return m?m.nome:''; }
 function animaisDoManejo(id){
-  if(id==='sem') return rebanho.filter(a=>areaDe(a)===area && (!a.manejoId || !manejos.some(m=>m.id===a.manejoId)));
+  if(id==='sem') return rebanho.filter(a=>areaDe(a)===area && propDe(a)===propriedadeAtualId && (!a.manejoId || !manejos.some(m=>m.id===a.manejoId)));
   return rebanho.filter(a=>a.manejoId===id);
 }
 // Garante que existe um manejo ativo (cria um com a data de hoje se preciso)
 function garantirManejoAtual(){
   const atual=manejos.find(m=>m.id===manejoAtualId);
-  if(atual && areaDe(atual)===area) return manejoAtualId;
-  const m={id:Date.now(), nome:'Manejo '+new Date().toLocaleDateString('pt-BR'), data:Date.now(), area};
+  if(atual && areaDe(atual)===area && propDe(atual)===propriedadeAtualId) return manejoAtualId;
+  const m={id:Date.now(), nome:'Manejo '+new Date().toLocaleDateString('pt-BR'), data:Date.now(), area, propId:propriedadeAtualId};
   manejos.push(m); manejoAtualId=m.id;
   salvarManejos(); salvar();
   return m.id;
@@ -546,7 +703,7 @@ function salvarManejoCfg(){
     m.nome=nome; m.campos=_cfgCampos.slice(); m.semBrinco=!_cfgBrinco;
     toast('📋 Manejo atualizado');
   } else {
-    const m={id:Date.now(), nome, data:Date.now(), campos:_cfgCampos.slice(), semBrinco:!_cfgBrinco, area};
+    const m={id:Date.now(), nome, data:Date.now(), campos:_cfgCampos.slice(), semBrinco:!_cfgBrinco, area, propId:propriedadeAtualId};
     manejos.push(m); manejoAtualId=m.id;
     filtroManejoId=null; abaHome='animais';
     toast('📋 Manejo "'+nome+'" iniciado — os próximos cadastros entram nele', 5000);
@@ -608,6 +765,8 @@ function toast(msg,dur=2400){
 // ── Tela inicial ──
 function renderHome(){
   aplicarArea();
+  const barProp=document.getElementById('propNomeBar');
+  if(barProp) barProp.textContent = propriedadeAtualId ? nomeProp(propriedadeAtualId) : 'Geral (sem propriedade)';
   const daArea=animaisDaArea();
   const manArea=manejosDaArea();
   const machos=daArea.filter(a=>a.sexo==='M').length;
@@ -711,9 +870,9 @@ function excluir(id){
 }
 
 function exportarCSV(){
-  const linhas=[['Area','Brinco','Sexo','Raca','Categoria','Idade','Peso (kg)','Manejo','Observacao','Data']];
+  const linhas=[['Area','Propriedade','Brinco','Sexo','Raca','Categoria','Idade','Peso (kg)','Manejo','Observacao','Data']];
   [...animaisDaArea()].sort((a,b)=>a.data-b.data).forEach(a=>{
-    linhas.push([area==='corte'?'Corte':'Reproducao', a.brinco, labelSexo(a.sexo), a.raca, a.categoria||'', labelIdade(a.idade), a.peso||'', nomeManejo(a.manejoId)||'', (a.obs||'').replace(/[\r\n]+/g,' '), new Date(a.data).toLocaleString('pt-BR')]);
+    linhas.push([area==='corte'?'Corte':'Reproducao', nomeProp(a.propId)||'Geral', a.brinco, labelSexo(a.sexo), a.raca, a.categoria||'', labelIdade(a.idade), a.peso||'', nomeManejo(a.manejoId)||'', (a.obs||'').replace(/[\r\n]+/g,' '), new Date(a.data).toLocaleString('pt-BR')]);
   });
   const csv='﻿'+linhas.map(l=>l.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
@@ -741,6 +900,7 @@ function exportarExcel(){
   const linhas = [...doArq].sort((a,b)=>a.data-b.data).map(a=>{
     const o={
     'Área':             rotuloArea,
+    'Propriedade':      nomeProp(a.propId) || 'Geral',
     'Brinco':           a.brinco,
     'Sexo':             labelSexo(a.sexo),
     'Raça':             a.raca};
@@ -778,6 +938,7 @@ function exportarExcel(){
   const conta = f => doArq.filter(f).length;
   const resumo = [
     ['RESUMO — BOVINOS DE '+rotuloArea.toUpperCase(), ''],
+    ['Propriedade', propriedadeAtualId ? nomeProp(propriedadeAtualId) : 'Geral'],
     ['Total de animais', doArq.length],
     ['Machos',  conta(a=>a.sexo==='M')],
     ['Fêmeas',  conta(a=>a.sexo==='F')],
@@ -830,11 +991,20 @@ async function importarPlanilha(files){
     const base=Date.now();
     // Reaproveita o manejo com o mesmo nome ou cria um novo
     let _seqManejo=0;
-    const manejoPorNome=(nome, dataRef, areaM)=>{
+    const manejoPorNome=(nome, dataRef, areaM, propM)=>{
       nome=String(nome||'').trim(); if(!nome) return null;
-      let m=manejos.find(x=>x.nome===nome && areaDe(x)===areaM);
-      if(!m){ m={id:base+900000+(_seqManejo++), nome, data:dataRef||base, area:areaM}; manejos.push(m); }
+      let m=manejos.find(x=>x.nome===nome && areaDe(x)===areaM && propDe(x)===propM);
+      if(!m){ m={id:base+900000+(_seqManejo++), nome, data:dataRef||base, area:areaM, propId:propM}; manejos.push(m); }
       return m.id;
+    };
+    let _seqProp=0;
+    const propPorNome=(nome)=>{
+      nome=String(nome||'').trim();
+      if(!nome) return propriedadeAtualId;              // sem coluna → propriedade ativa
+      if(nome.toLowerCase()==='geral') return null;     // "Geral" → grupo sem propriedade
+      let pr=propriedades.find(x=>x.nome===nome);
+      if(!pr){ pr={id:base+800000+(_seqProp++), nome, proprietario:'', contato:'', data:base}; propriedades.push(pr); }
+      return pr.id;
     };
     linhas.forEach((l,i)=>{
       const brinco = String(l['Brinco'] ?? l['brinco'] ?? '').trim();
@@ -843,8 +1013,9 @@ async function importarPlanilha(files){
       const areaTxt = String(l['Área'] ?? l['Area'] ?? '').toLowerCase();
       const areaLinha = areaTxt.includes('reprod') ? 'reproducao' : (areaTxt.includes('corte') ? 'corte' : area);
       const data = parseDataPlanilha(l['Data de cadastro']) || base;
-      const manejoId = manejoPorNome(l['Manejo'], data, areaLinha);
-      const existente = rebanho.find(a=>a.brinco===brinco && areaDe(a)===areaLinha);
+      const propLinha = propPorNome(l['Propriedade']);
+      const manejoId = manejoPorNome(l['Manejo'], data, areaLinha, propLinha);
+      const existente = rebanho.find(a=>a.brinco===brinco && areaDe(a)===areaLinha && propDe(a)===propLinha);
       if(existente){
         // Já existe: não duplica, mas entra no manejo da planilha se ainda não tiver um
         const semManejo = !existente.manejoId || !manejos.some(m=>m.id===existente.manejoId);
@@ -863,7 +1034,7 @@ async function importarPlanilha(files){
       const categoria = catTxt.startsWith('prim') ? 'Primípara' : (catTxt.startsWith('mult') ? 'Multípara' : (catTxt.startsWith('vaca') ? 'Vaca' : ''));
       const peso = parseInt(l['Peso atual (kg)'] ?? l['Peso (kg)'] ?? '', 10) || null;
       rebanho.push({
-        id: base+i, area: areaLinha, brinco, sexo, raca, categoria, idade, peso,
+        id: base+i, area: areaLinha, propId: propLinha, brinco, sexo, raca, categoria, idade, peso,
         pesagens: peso ? [{peso, data}] : [],
         manejoId,
         obs: String(l['Observação'] ?? l['Observacao'] ?? '').trim(),
@@ -883,7 +1054,7 @@ async function importarPlanilha(files){
       });
     }
     normalizarRebanho();
-    salvarManejos();
+    salvarManejos(); salvarProps();
     salvar(); renderHome();
     toast(`📥 ${novos} animais importados` + (movidos?` · ${movidos} que já existiam entraram no manejo`:'') + (repetidos && !movidos?` · ${repetidos} já existiam`:'') + (ignorados?` · ${ignorados} linhas ignoradas`:''), 7000);
   }catch(e){
@@ -1159,6 +1330,11 @@ function abrirEditar(id){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="edIdades">
       ${IDADES.map(i=>`<button class="ed-opt" data-idade="${i.v}" onclick="edSel('idade','${i.v}')">${i.l}</button>`).join('')}
     </div>
+    <div class="ed-label">Propriedade</div>
+    <select id="edProp" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px;font-family:inherit;background:#fff;color:var(--text);outline:none">
+      <option value="">Geral (sem propriedade)</option>
+      ${propriedades.map(pr=>`<option value="${pr.id}" ${a.propId===pr.id?'selected':''}>${escaparHTML(pr.nome)}</option>`).join('')}
+    </select>
     <div class="ed-label">Manejo</div>
     <select id="edManejo" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px;font-family:inherit;background:#fff;color:var(--text);outline:none">
       <option value="">Sem manejo</option>
@@ -1190,8 +1366,16 @@ function salvarEdicao(){
   a.brinco=brinco;
   a.sexo=_ed.sexo; a.raca=_ed.raca; a.idade=_ed.idade;
   if(areaDe(a)==='reproducao') a.categoria=_ed.categoria||'';
+  const propSel=document.getElementById('edProp').value;
+  const novoProp = propSel ? parseInt(propSel,10) : null;
   const man=document.getElementById('edManejo').value;
   a.manejoId = man ? parseInt(man,10) : null;
+  // Mudou de propriedade? O manejo antigo (de outra propriedade) é desvinculado
+  if(novoProp!==propDe(a)){
+    a.propId=novoProp;
+    const mSel=manejos.find(m=>m.id===a.manejoId);
+    if(mSel && propDe(mSel)!==novoProp) a.manejoId=null;
+  } else { a.propId=novoProp; }
   a.obs=document.getElementById('edObs').value.trim();
   salvar(); renderHome(); fecharEditar();
   toast(brinco ? '✏️ Brinco '+brinco+' atualizado' : '✏️ Animal atualizado');
@@ -1208,7 +1392,7 @@ function mostrarObs(){
 function salvarAnimal(){
   const campo=document.getElementById('obsTexto');
   rebanho.push({
-    id:novoId(), area, brinco:w.brinco, sexo:w.sexo, raca:w.raca, categoria:w.categoria||'', idade:w.idade,
+    id:novoId(), area, propId:propriedadeAtualId, brinco:w.brinco, sexo:w.sexo, raca:w.raca, categoria:w.categoria||'', idade:w.idade,
     peso:w.peso?parseInt(w.peso,10):null,
     pesagens:w.peso?[{peso:parseInt(w.peso,10), data:Date.now()}]:[],
     manejoId: garantirManejoAtual(),
@@ -1291,6 +1475,16 @@ async function puxarEMesclar(){
     manejos = manejos.filter(m=>!manejosExcluidos.includes(m.id));
     if(!manejos.some(m=>m.id===manejoAtualId)) manejoAtualId = manejos.length ? manejos[manejos.length-1].id : null;
     salvarManejos();
+    // Propriedades: união por id (nuvem atualiza dados) + lápides
+    ((nuvem&&nuvem.propriedades)||[]).forEach(pr=>{
+      const ex=propriedades.find(x=>x.id===pr.id);
+      if(ex){ ex.nome=pr.nome; ex.proprietario=pr.proprietario||''; ex.contato=pr.contato||''; }
+      else propriedades.push(pr);
+    });
+    propriedadesExcluidas = [...new Set([...propriedadesExcluidas, ...((nuvem&&nuvem.propriedadesExcluidas)||[])])];
+    propriedades = propriedades.filter(pr=>!propriedadesExcluidas.includes(pr.id));
+    if(propriedadeAtualId!==null && !propriedades.some(pr=>pr.id===propriedadeAtualId)) propriedadeAtualId=null;
+    salvarProps();
     const excTot = [...new Set([...excluidos, ...((nuvem&&nuvem.excluidos)||[])])];
     const porId = {};
     [...((nuvem&&nuvem.rebanho)||[]), ...rebanho].forEach(a=>{
@@ -1333,9 +1527,11 @@ async function empurrarNuvem(){
   }
   try{
     await docNuvem().set({
-      rebanho: rebanho.map(a=>({id:a.id,area:areaDe(a),brinco:a.brinco,sexo:a.sexo,raca:a.raca,categoria:a.categoria||'',idade:a.idade,peso:a.peso||null,pesagens:(a.pesagens||[]).map(p=>({peso:p.peso,data:p.data})),manejoId:a.manejoId||null,obs:a.obs||'',data:a.data})),
-      manejos: manejos.map(m=>({id:m.id,area:areaDe(m),nome:m.nome,data:m.data,campos:Array.isArray(m.campos)?m.campos:null,semBrinco:!!m.semBrinco})),
+      rebanho: rebanho.map(a=>({id:a.id,area:areaDe(a),propId:a.propId||null,brinco:a.brinco,sexo:a.sexo,raca:a.raca,categoria:a.categoria||'',idade:a.idade,peso:a.peso||null,pesagens:(a.pesagens||[]).map(p=>({peso:p.peso,data:p.data})),manejoId:a.manejoId||null,obs:a.obs||'',data:a.data})),
+      manejos: manejos.map(m=>({id:m.id,area:areaDe(m),propId:m.propId||null,nome:m.nome,data:m.data,campos:Array.isArray(m.campos)?m.campos:null,semBrinco:!!m.semBrinco})),
       manejosExcluidos: manejosExcluidos.slice(-200),
+      propriedades: propriedades.map(pr=>({id:pr.id,nome:pr.nome,proprietario:pr.proprietario||'',contato:pr.contato||'',data:pr.data})),
+      propriedadesExcluidas: propriedadesExcluidas.slice(-200),
       excluidos: excluidos.slice(-500),
       email: _email,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1445,6 +1641,7 @@ carregarArea();
 carregar();
 carregarExcluidos();
 carregarManejos();
+carregarProps();
 renderHome();
 if(_primeiraVez) abrirTelaArea();   // 1ª abertura: escolher Corte ou Reprodução
 // Pede ao sistema para NÃO apagar o armazenamento deste app ("liberar espaço")
