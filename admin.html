@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ID-Bov — Painel do Dono</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Mono:wght@700&display=swap');
+    :root{
+      --bg:#F4F7F3; --card:#FFFFFF; --border:rgba(18,38,26,.12);
+      --green:#1B7A3D; --green-2:#166B4A; --green-deep:#15331F; --green-light:rgba(27,122,61,.10);
+      --gold:#D8A521; --red:#DD5237; --red-light:rgba(221,82,55,.13);
+      --text:#182720; --text-2:#5A6353; --text-3:#8A9289;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Manrope',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    header{background:var(--green-deep);color:#fff;display:flex;align-items:center;gap:10px;padding:14px 18px}
+    header h1{font-size:1.05rem;font-weight:800;flex:1}
+    header .badge{background:var(--gold);color:#23170A;font-family:'Space Mono',monospace;font-size:0.65rem;padding:4px 10px;border-radius:20px;font-weight:700}
+    .wrap{max-width:680px;margin:0 auto;padding:20px 16px 60px}
+    .caixa{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px}
+    input{width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);margin-bottom:10px;outline:none;font-family:inherit;font-size:16px}
+    .btn{width:100%;border:none;cursor:pointer;font-family:'Manrope',sans-serif;font-size:0.95rem;background:var(--green);color:#fff;font-weight:800;padding:13px;border-radius:12px;box-shadow:0 4px 0 #0f5a2c}
+    .btn-sec{width:100%;border:1.5px solid var(--border);cursor:pointer;font-family:inherit;font-size:0.86rem;background:#fff;color:var(--text);font-weight:700;padding:11px;border-radius:12px;margin-top:9px}
+    .erro{display:none;background:var(--red-light);color:var(--red);border-radius:10px;padding:9px 12px;font-size:0.8rem;font-weight:700;margin-bottom:10px}
+    .conta{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px}
+    .conta.bloq{background:rgba(221,82,55,.05);border-color:rgba(221,82,55,.3)}
+    .conta .email{font-weight:800;font-size:0.95rem;color:var(--green-deep);word-break:break-all}
+    .conta .meta{font-size:0.76rem;color:var(--text-2);margin-top:4px;line-height:1.5}
+    .chip{display:inline-block;font-size:0.64rem;font-weight:800;border-radius:999px;padding:3px 9px;vertical-align:1px}
+    .chip.ok{background:var(--green-light);color:var(--green-2)}
+    .chip.bloq{background:var(--red-light);color:var(--red)}
+    .acoes{display:flex;gap:8px;margin-top:10px}
+    .acoes button{flex:1;border-radius:9px;padding:9px;font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit}
+    .b-bloq{border:1px solid rgba(221,82,55,.35);background:var(--red-light);color:var(--red)}
+    .b-desb{border:1px solid rgba(27,122,61,.4);background:var(--green-light);color:var(--green-2)}
+    .resumo{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+    .pill{background:var(--green-light);border:1px solid rgba(27,122,61,.3);color:var(--green-2);border-radius:999px;padding:5px 12px;font-size:0.78rem;font-weight:800;font-family:'Space Mono',monospace}
+    .aviso{text-align:center;color:var(--text-3);padding:30px 10px;font-size:0.9rem;line-height:1.5}
+  </style>
+</head>
+<body>
+
+<header>
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#D8A521" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6c0 2 1.4 3.1 3 3.1M19.5 6c0 2-1.4 3.1-3 3.1"/><ellipse cx="12" cy="13.5" rx="5.2" ry="4.6"/><path d="M10 16.8c.55.5 1.2.7 2 .7s1.45-.2 2-.7"/></svg>
+  <h1>ID-Bov · Painel do Dono</h1>
+  <span class="badge">ADMIN</span>
+</header>
+
+<div class="wrap">
+
+  <!-- Login do dono -->
+  <div class="caixa" id="boxLogin">
+    <p style="font-size:0.88rem;color:var(--text-2);line-height:1.5;margin-bottom:14px">Gestão de contas do ID-Bov. Acesso restrito ao dono do sistema.</p>
+    <div class="erro" id="loginErro"></div>
+    <input id="adminEmail" type="email" placeholder="E-mail do dono" autocomplete="email">
+    <input id="adminSenha" type="password" placeholder="Senha" autocomplete="current-password">
+    <button class="btn" onclick="entrar()">Entrar no painel</button>
+  </div>
+
+  <!-- Painel -->
+  <div id="boxPainel" style="display:none">
+    <div class="resumo" id="resumo"></div>
+    <div id="listaContas"><div class="aviso">Carregando contas...</div></div>
+    <button class="btn-sec" onclick="carregarContas()">↻ Atualizar lista</button>
+    <button class="btn-sec" onclick="sair()" style="color:var(--red);border-color:rgba(221,82,55,.35)">Sair do painel</button>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  PAINEL DO DONO — gestão de contas do ID-Bov
+//  App Firebase NOMEADO ('idbovadmin'): sessão isolada — não interfere
+//  no login dos clientes (regra aprendida no Colaborador Eficiente).
+// ══════════════════════════════════════════════
+const OWNER_EMAILS = ['fabriciomarquez.r@gmail.com'];
+const FIREBASE_CFG = {
+  apiKey: "AIzaSyAWM8ogtyrPrVZOGpaynzyrfiO6qW97Kyk",
+  authDomain: "id-bov.firebaseapp.com",
+  projectId: "id-bov",
+  storageBucket: "id-bov.firebasestorage.app",
+  messagingSenderId: "797957457641",
+  appId: "1:797957457641:web:5108442e6105d5bc179278"
+};
+
+const app = firebase.apps.find(a=>a.name==='idbovadmin') || firebase.initializeApp(FIREBASE_CFG,'idbovadmin');
+const auth = app.auth(); auth.languageCode='pt';
+const db = app.firestore();
+
+function erro(msg){ const e=document.getElementById('loginErro'); e.textContent=msg; e.style.display=msg?'block':'none'; }
+
+async function entrar(){
+  const em=document.getElementById('adminEmail').value.trim();
+  const sn=document.getElementById('adminSenha').value;
+  if(!em||!sn){ erro('Preencha e-mail e senha.'); return; }
+  try{ await auth.signInWithEmailAndPassword(em,sn); }
+  catch(e){ erro('Login falhou: '+(e.code||e.message)); }
+}
+async function sair(){ await auth.signOut(); }
+
+auth.onAuthStateChanged(async user=>{
+  const ehDono = user && OWNER_EMAILS.includes((user.email||'').toLowerCase());
+  if(user && !ehDono){
+    await auth.signOut();
+    erro('Esta conta não tem permissão de administrador.');
+    return;
+  }
+  document.getElementById('boxLogin').style.display = ehDono?'none':'block';
+  document.getElementById('boxPainel').style.display = ehDono?'block':'none';
+  if(ehDono){ erro(''); carregarContas(); }
+});
+
+function fmtData(ts){
+  if(!ts) return '—';
+  try{ return ts.toDate().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return '—'; }
+}
+
+async function carregarContas(){
+  const el=document.getElementById('listaContas');
+  el.innerHTML='<div class="aviso">Carregando contas...</div>';
+  try{
+    const snap = await db.collection('contas').get();
+    const contas = snap.docs.map(d=>({uid:d.id, ...d.data()}));
+    // Conta os animais de cada cliente (leitura permitida ao dono pelas regras)
+    await Promise.all(contas.map(async c=>{
+      try{
+        const doc = await db.collection('idbov').doc(c.uid).get();
+        c.animais = doc.exists ? ((doc.data().rebanho||[]).length) : 0;
+      }catch(e){ c.animais = '—'; }
+    }));
+    contas.sort((a,b)=>(b.criadaEm&&b.criadaEm.seconds||0)-(a.criadaEm&&a.criadaEm.seconds||0));
+    const bloqueadas = contas.filter(c=>c.bloqueada).length;
+    document.getElementById('resumo').innerHTML =
+      `<span class="pill">Contas: ${contas.length}</span>`+
+      `<span class="pill">Ativas: ${contas.length-bloqueadas}</span>`+
+      (bloqueadas?`<span class="pill" style="background:var(--red-light);border-color:rgba(221,82,55,.3);color:var(--red)">Bloqueadas: ${bloqueadas}</span>`:'');
+    if(!contas.length){
+      el.innerHTML='<div class="aviso">Nenhuma conta criada ainda.<br>Quando um cliente se cadastrar no ID-Bov, a ficha dele aparece aqui.</div>';
+      return;
+    }
+    el.innerHTML = contas.map(c=>`
+      <div class="conta ${c.bloqueada?'bloq':''}">
+        <div class="email">${(c.email||'(sem e-mail)').replace(/</g,'&lt;')}
+          <span class="chip ${c.bloqueada?'bloq':'ok'}">${c.bloqueada?'BLOQUEADA':'ATIVA'}</span>
+        </div>
+        <div class="meta">
+          Criada em: ${fmtData(c.criadaEm)}<br>
+          Último acesso: ${fmtData(c.ultimoAcesso)} · Animais na nuvem: <b>${c.animais}</b>
+        </div>
+        <div class="acoes">
+          ${c.bloqueada
+            ? `<button class="b-desb" onclick="mudarBloqueio('${c.uid}', false)">Desbloquear conta</button>`
+            : `<button class="b-bloq" onclick="mudarBloqueio('${c.uid}', true)">Bloquear conta</button>`}
+        </div>
+      </div>`).join('');
+  }catch(e){
+    console.error(e);
+    el.innerHTML='<div class="aviso">Não consegui carregar as contas.<br>Confira as regras do Firestore (coleção "contas") e a internet.<br><small>'+(e.code||e.message||'')+'</small></div>';
+  }
+}
+
+async function mudarBloqueio(uid, bloquear){
+  if(!confirm(bloquear ? 'Bloquear esta conta?\n\nO cliente perde o acesso à nuvem dele (os dados não são apagados).' : 'Desbloquear esta conta?')) return;
+  try{
+    await db.collection('contas').doc(uid).set({bloqueada:bloquear},{merge:true});
+    carregarContas();
+  }catch(e){ alert('Não consegui alterar: '+(e.code||e.message)); }
+}
+</script>
+</body>
+</html>

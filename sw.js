@@ -9,7 +9,7 @@
 //  • Pré-cache com {cache:'reload'} — fura o cache HTTP do Safari (era a
 //    causa das atualizações nunca chegarem ao iPhone).
 // ══════════════════════════════════════════════
-const CACHE = 'id-bov-v19';
+const CACHE = 'id-bov-v20';
 
 const PRE_CACHE = [
   './',
@@ -59,13 +59,17 @@ self.addEventListener('fetch', e => {
   // ── ABRIR O APP: rede primeiro (atualização na hora), cache se offline ──
   if (e.request.mode === 'navigate') {
     e.respondWith((async () => {
-      const cacheado = await caches.match('./index.html');
+      // O fallback de cache é só para o APP (index); /admin.html é online-only
+      const ehApp = /(\/|index\.html)$/.test(new URL(e.request.url).pathname);
+      const cacheado = ehApp ? await caches.match('./index.html') : null;
       try {
         // Com cache disponível espera pouco pela rede; sem cache, espera mais
         const resp = await comTimeout(fetch(e.request.url, {cache:'no-cache'}), cacheado ? 4000 : 20000);
         if (resp && resp.status === 200) {
-          const copia = resp.clone();
-          caches.open(CACHE).then(c => { c.put('./index.html', copia); }).catch(() => {});
+          if (ehApp) {
+            const copia = resp.clone();
+            caches.open(CACHE).then(c => { c.put('./index.html', copia); }).catch(() => {});
+          }
           return resp;
         }
         return cacheado || resp;

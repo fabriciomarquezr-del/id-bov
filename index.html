@@ -1468,11 +1468,43 @@ async function onAuthMudou(user){
   _uid = user ? user.uid : null;
   _email = user ? (user.email||'') : '';
   if(_uid){
-    try{ await _cofrePronto; }catch(e){}   // cofre primeiro: mescla com o estado completo
+    const liberada = await registrarConta();   // ficha p/ o painel do dono + checa bloqueio
+    if(!liberada) return;                       // conta bloqueada: já deslogou
+    try{ await _cofrePronto; }catch(e){}       // cofre primeiro: mescla com o estado completo
     await puxarEMesclar();
   }
   else { _nuvemOk=false; }
   atualizarDotNuvem();
+}
+
+// Ficha da conta (coleção contas/{uid}) — alimenta o painel do dono.
+// Se a conta estiver BLOQUEADA, desconecta e avisa. Sem internet, segue local.
+async function registrarConta(){
+  try{
+    const ref=_db.collection('contas').doc(_uid);
+    const doc=await ref.get();
+    if(!doc.exists){
+      await ref.set({
+        email:_email,
+        criadaEm: firebase.firestore.FieldValue.serverTimestamp(),
+        ultimoAcesso: firebase.firestore.FieldValue.serverTimestamp(),
+        bloqueada:false
+      });
+      return true;
+    }
+    if(doc.data().bloqueada===true){
+      _nuvemOk=false; _uid=null; _email='';
+      try{ await _auth.signOut(); }catch(e){}
+      atualizarDotNuvem();
+      toast('Esta conta está bloqueada. Fale com o suporte do ID-Bov.', 8000);
+      return false;
+    }
+    ref.set({email:_email, ultimoAcesso: firebase.firestore.FieldValue.serverTimestamp()},{merge:true}).catch(()=>{});
+    return true;
+  }catch(e){
+    console.error('registrarConta:', e);
+    return true;   // provável falta de internet: o app continua local-first
+  }
 }
 
 function docNuvem(){ return _db.collection('idbov').doc(_uid); }

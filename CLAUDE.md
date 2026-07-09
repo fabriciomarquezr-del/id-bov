@@ -196,6 +196,21 @@ Proteções implementadas — NÃO REMOVER:
 - **Linha de status `#syncInfo`** na home: sem conta / aguardando internet /
   nuvem em dia.
 
+## Comercialização: painel do dono + contas (v20)
+
+- **admin.html** (`/admin.html`, online-only, fora do fallback de cache do SW):
+  painel de gestão de contas no modelo do Colaborador Eficiente. Login
+  restrito a `OWNER_EMAILS=['fabriciomarquez.r@gmail.com']`; app Firebase
+  NOMEADO `'idbovadmin'` (sessão isolada — regra do usuário). Lista
+  `contas/{uid}` (e-mail, criada em, último acesso, nº de animais lido de
+  `idbov/{uid}`), com Bloquear/Desbloquear (`bloqueada` via merge).
+- **App**: `registrarConta()` no login cria/atualiza a ficha em
+  `contas/{uid}` ({email, criadaEm, ultimoAcesso, bloqueada:false});
+  se `bloqueada===true` → signOut + aviso. Sem internet → segue local-first.
+- **Isolamento por cliente**: cada conta só acessa `idbov/{uid}` próprio
+  (regras); o bloqueio é IMPOSTO nas regras (get em contas/{uid}).
+- Regras do Firestore precisam do bloco de `contas` + dono (ver seção Nuvem).
+
 ## Nuvem (Firebase — opcional, v3)
 
 - **Projeto Firebase PRÓPRIO: `id-bov`** — totalmente independente do
@@ -204,13 +219,31 @@ Proteções implementadas — NÃO REMOVER:
   `'idbov'`. Na v2 chegou a usar o projeto `colaborador-eficiente`; trocado
   na v3 antes de existir qualquer dado na nuvem.
 - Firestore: coleção `idbov/{uid}` → `{ rebanho:[...], excluidos:[...], email, updatedAt }`.
-- **Regras do Firestore** (console do projeto id-bov → Firestore → Regras):
+- **Regras do Firestore** (console do projeto id-bov → Firestore → Regras —
+  versão v20, com painel do dono e bloqueio):
   ```
   rules_version = '2';
   service cloud.firestore {
     match /databases/{database}/documents {
+      function ehDono() {
+        return request.auth != null &&
+          request.auth.token.email in ['fabriciomarquez.r@gmail.com'];
+      }
+      function contaBloqueada(uid) {
+        return exists(/databases/$(database)/documents/contas/$(uid)) &&
+          get(/databases/$(database)/documents/contas/$(uid)).data.bloqueada == true;
+      }
       match /idbov/{uid} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow read, write: if ehDono() ||
+          (request.auth != null && request.auth.uid == uid && !contaBloqueada(uid));
+      }
+      match /contas/{uid} {
+        allow read: if ehDono() || (request.auth != null && request.auth.uid == uid);
+        allow create: if request.auth != null && request.auth.uid == uid &&
+          request.resource.data.bloqueada == false;
+        allow update: if ehDono() || (request.auth != null && request.auth.uid == uid &&
+          request.resource.data.bloqueada == resource.data.bloqueada);
+        allow delete: if ehDono();
       }
     }
   }

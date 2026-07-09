@@ -12,3 +12,6 @@
 
 /manifest.json
   Cache-Control: no-cache
+
+/admin.html
+  Cache-Control: no-cache
