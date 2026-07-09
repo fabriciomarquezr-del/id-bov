@@ -41,6 +41,18 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
 - Edição propaga p/ nuvem: na mesclagem o lado local vence nos campos
   simples (`Object.assign({}, nuvem, local)`).
 
+## Logo de chifres + cartões de área sem ícone (v24)
+
+- Novo `ico('logo')`: marca do ID-Bov em chifres estilizados (fill
+  currentColor, path único `HORNS_PATH`), inspirada em referência do
+  usuário — substitui o boi de corpo inteiro no logo do cabeçalho, chip de
+  área (Corte e Reprodução usam o MESMO logo agora, não boi/vaca separados),
+  tela de escolha de área, admin.html e página offline do SW.
+- Cartões "Bovinos de CORTE" / "Bovinos de REPRODUÇÃO" na tela de escolha:
+  ícones removidos a pedido do usuário — só título e subtítulo.
+- `ico('bull')`/`ico('cow')` (boi/vaca de corpo inteiro, v23) permanecem só
+  no cartão do animal sem sexo definido.
+
 ## Ícones de boi e vaca (v23)
 
 - Desenhos de LINHA de corpo inteiro (stroke currentColor), refeitos a partir
