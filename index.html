@@ -330,7 +330,7 @@ async function salvarCofre(){
   try{
     const db=await _abrirIDB(); if(!db) return;
     db.transaction(IDB_STORE,'readwrite').objectStore(IDB_STORE)
-      .put(JSON.parse(JSON.stringify({rebanho, excluidos, manejos, quando:Date.now()})),'backup');
+      .put(JSON.parse(JSON.stringify({rebanho, excluidos, manejos, manejosExcluidos, quando:Date.now()})),'backup');
   }catch(e){}
 }
 async function lerCofre(){
@@ -363,8 +363,10 @@ async function recuperarDoCofre(){
     });
     rebanho=Object.values(porId).filter(a=>!excTot.includes(a.id)).sort((a,b)=>a.data-b.data);
     excluidos=excTot;
-    // Recupera também os manejos que só existirem no cofre
+    // Recupera também os manejos que só existirem no cofre (respeitando exclusões)
+    manejosExcluidos = [...new Set([...manejosExcluidos, ...(cofre.manejosExcluidos||[])])];
     (cofre.manejos||[]).forEach(m=>{ if(!manejos.some(x=>x.id===m.id)) manejos.push(m); });
+    manejos = manejos.filter(m=>!manejosExcluidos.includes(m.id));
     salvarManejos();
     normalizarRebanho();
     if(rebanho.length>antes){
@@ -389,20 +391,23 @@ function salvar(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(rebanho)); }
 //  MANEJOS — sessões de trabalho (ex.: "Desmama", "Vacinação lote 2")
 //  Cada animal cadastrado entra no manejo ATIVO do momento.
 // ══════════════════════════════════════════════
-const MAN_KEY='idbov-manejos-v1', MAN_ATUAL_KEY='idbov-manejo-atual-v1';
-let manejos = [];            // [{id, nome, data}]
+const MAN_KEY='idbov-manejos-v1', MAN_ATUAL_KEY='idbov-manejo-atual-v1', MAN_EXC_KEY='idbov-manejos-excluidos-v1';
+let manejos = [];            // [{id, nome, data, campos, semBrinco}]
+let manejosExcluidos = [];   // lápides: ids de manejos excluídos (a nuvem não os ressuscita)
 let manejoAtualId = null;    // manejo que recebe os novos cadastros
 let filtroManejoId = null;   // filtro da lista de animais (null = todos, 'sem' = sem manejo)
 let abaHome = 'animais';
 
 function carregarManejos(){
   try{ manejos = JSON.parse(localStorage.getItem(MAN_KEY)) || []; }catch(e){ manejos=[]; }
+  try{ manejosExcluidos = JSON.parse(localStorage.getItem(MAN_EXC_KEY)) || []; }catch(e){ manejosExcluidos=[]; }
   try{ manejoAtualId = JSON.parse(localStorage.getItem(MAN_ATUAL_KEY)); }catch(e){ manejoAtualId=null; }
   if(!manejos.some(m=>m.id===manejoAtualId)) manejoAtualId = manejos.length ? manejos[manejos.length-1].id : null;
 }
 function salvarManejos(){
   try{ localStorage.setItem(MAN_KEY, JSON.stringify(manejos)); }catch(e){}
   try{ localStorage.setItem(MAN_ATUAL_KEY, JSON.stringify(manejoAtualId)); }catch(e){}
+  try{ localStorage.setItem(MAN_EXC_KEY, JSON.stringify(manejosExcluidos.slice(-200))); }catch(e){}
 }
 function nomeManejo(id){ const m=manejos.find(x=>x.id===id); return m?m.nome:''; }
 function animaisDoManejo(id){
@@ -474,6 +479,25 @@ function salvarManejoCfg(){
   salvarManejos(); salvar();
   fecharManejoCfg(); renderHome();
 }
+function excluirManejo(id){
+  const m=manejos.find(x=>x.id===id); if(!m) return;
+  const bichos=animaisDoManejo(id);
+  const msg = bichos.length
+    ? 'Excluir o manejo "'+m.nome+'"?\n\n'+(bichos.length===1
+        ? 'O animal dele NÃO será apagado — vai para o grupo "Sem manejo".'
+        : 'Os '+bichos.length+' animais dele NÃO serão apagados — vão para o grupo "Sem manejo".')
+    : 'Excluir o manejo "'+m.nome+'"?';
+  if(!confirm(msg)) return;
+  // animais do manejo ficam sem manejo (continuam no rebanho)
+  rebanho.forEach(a=>{ if(a.manejoId===id) a.manejoId=null; });
+  manejos = manejos.filter(x=>x.id!==id);
+  if(!manejosExcluidos.includes(id)) manejosExcluidos.push(id);
+  if(manejoAtualId===id) manejoAtualId = manejos.length ? manejos[manejos.length-1].id : null;
+  if(filtroManejoId===id) filtroManejoId=null;
+  salvarManejos(); salvar(); renderHome();
+  toast('🗑 Manejo "'+m.nome+'" excluído'+(bichos.length?' — animais movidos para "Sem manejo"':''), 5000);
+}
+function voltarParaManejos(){ filtroManejoId=null; abaHome='manejos'; renderHome(); }
 function usarManejo(id){
   manejoAtualId=id; salvarManejos(); renderHome();
   toast('📋 Cadastros novos vão para "'+nomeManejo(id)+'"');
@@ -530,10 +554,13 @@ function renderHome(){
   // ── Painel Animais ──
   const filtrados = filtroManejoId===null ? rebanho : animaisDoManejo(filtroManejoId);
   document.getElementById('filtroBar').innerHTML = filtroManejoId===null ? '' : `
-    <span class="chip" style="background:var(--gold-light);border-color:rgba(216,165,33,.4);color:var(--gold-dark)">
-      📋 ${escaparHTML(filtroManejoId==='sem'?'Sem manejo':nomeManejo(filtroManejoId))} · ${filtrados.length}
-      <button onclick="limparFiltroManejo()" style="background:none;border:none;cursor:pointer;font-weight:800;color:inherit;font-size:0.9rem;padding:0 0 0 4px">✕</button>
-    </span>`;
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button onclick="voltarParaManejos()" style="border:1.5px solid var(--border);background:#fff;color:var(--text);font-weight:800;font-size:0.8rem;padding:7px 13px;border-radius:999px;cursor:pointer;font-family:inherit">← Voltar</button>
+      <span class="chip" style="background:var(--gold-light);border-color:rgba(216,165,33,.4);color:var(--gold-dark)">
+        📋 ${escaparHTML(filtroManejoId==='sem'?'Sem manejo':nomeManejo(filtroManejoId))} · ${filtrados.length}
+        <button onclick="limparFiltroManejo()" title="Ver todos os animais" style="background:none;border:none;cursor:pointer;font-weight:800;color:inherit;font-size:0.9rem;padding:0 0 0 4px">✕</button>
+      </span>
+    </div>`;
   document.getElementById('btnExportar').style.display = rebanho.length?'block':'none';
   const lista=document.getElementById('lista');
   if(!filtrados.length){
@@ -577,6 +604,7 @@ function renderManejos(){
         <button onclick="verManejo(${m.id})" style="flex:1;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:700;font-size:0.78rem;padding:8px;border-radius:9px;cursor:pointer;font-family:inherit">Ver animais</button>
         ${ativo?'':`<button onclick="usarManejo(${m.id})" style="flex:1;border:1px solid rgba(27,122,61,.4);background:var(--green-light);color:var(--green-2);font-weight:700;font-size:0.78rem;padding:8px;border-radius:9px;cursor:pointer;font-family:inherit">Usar neste</button>`}
         <button onclick="abrirManejoCfg(${m.id})" title="Editar nome e campos" style="flex:none;border:1px solid var(--border);background:#fff;color:var(--text-2);font-weight:700;font-size:0.78rem;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit">✏️</button>
+        <button onclick="excluirManejo(${m.id})" title="Excluir manejo" style="flex:none;border:1px solid rgba(221,82,55,.35);background:var(--red-light);color:var(--red);font-weight:700;font-size:0.78rem;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit">🗑</button>
       </div>
     </div>`);
   });
@@ -1153,6 +1181,10 @@ async function puxarEMesclar(){
       if(ex){ ex.nome=m.nome; if(Array.isArray(m.campos)) ex.campos=m.campos; ex.semBrinco=!!m.semBrinco; }
       else manejos.push(m);
     });
+    // Lápides de manejo: excluído em qualquer aparelho não volta
+    manejosExcluidos = [...new Set([...manejosExcluidos, ...((nuvem&&nuvem.manejosExcluidos)||[])])];
+    manejos = manejos.filter(m=>!manejosExcluidos.includes(m.id));
+    if(!manejos.some(m=>m.id===manejoAtualId)) manejoAtualId = manejos.length ? manejos[manejos.length-1].id : null;
     salvarManejos();
     const excTot = [...new Set([...excluidos, ...((nuvem&&nuvem.excluidos)||[])])];
     const porId = {};
@@ -1198,6 +1230,7 @@ async function empurrarNuvem(){
     await docNuvem().set({
       rebanho: rebanho.map(a=>({id:a.id,brinco:a.brinco,sexo:a.sexo,raca:a.raca,idade:a.idade,peso:a.peso||null,pesagens:(a.pesagens||[]).map(p=>({peso:p.peso,data:p.data})),manejoId:a.manejoId||null,obs:a.obs||'',data:a.data})),
       manejos: manejos.map(m=>({id:m.id,nome:m.nome,data:m.data,campos:Array.isArray(m.campos)?m.campos:null,semBrinco:!!m.semBrinco})),
+      manejosExcluidos: manejosExcluidos.slice(-200),
       excluidos: excluidos.slice(-500),
       email: _email,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
