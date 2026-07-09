@@ -41,6 +41,18 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
 - Edição propaga p/ nuvem: na mesclagem o lado local vence nos campos
   simples (`Object.assign({}, nuvem, local)`).
 
+## Campos por manejo (painel do dia — v12)
+
+- Cada manejo tem `campos`: subconjunto de `['sexo','raca','idade','peso','obs']`
+  (`camposDoManejo()` devolve TODOS quando ausente — manejos antigos/automáticos).
+- Criar/editar manejo = modal `modalManejoCfg` (nome + toggles `.cfg-campo`);
+  substituiu os `prompt()`. Brinco é sempre obrigatório (linha travada 🔒).
+- Assistente: `w.seq = passosAtivos()` (brinco + campos do manejo ativo);
+  `avancarPasso()` salva o animal ao fim da sequência (obs desligada ⇒ o
+  último passo salva direto). Campos pulados ficam `''`/`null`; cartão usa
+  ícone neutro 🐄 e filtra vazios; edição (✏️) completa depois se quiser.
+- `campos` sincroniza na nuvem (pull atualiza nome/campos de id existente).
+
 ## Manejos (sessões de trabalho — v9)
 
 - `manejos=[{id,nome,data}]` (localStorage `idbov-manejos-v1`; ativo em

@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
 //  SERVICE WORKER — ID-Bov (offline)
 // ══════════════════════════════════════════════
-const CACHE = 'id-bov-v11';
+const CACHE = 'id-bov-v12';
 
 const PRE_CACHE = [
   './',
