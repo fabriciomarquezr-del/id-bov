@@ -41,6 +41,16 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
 - Edição propaga p/ nuvem: na mesclagem o lado local vence nos campos
   simples (`Object.assign({}, nuvem, local)`).
 
+## Ícones de boi e vaca (v23)
+
+- Desenhos de LINHA de corpo inteiro (stroke currentColor), refeitos a partir
+  das imagens de referência do usuário: `ico('bull')` = BOI com cupim/corcova
+  e chifres maiores (estilo Nelore) → Corte; `ico('cow')` = VACA com úbere e
+  chifres pequenos → Reprodução. `OX_PATHS`/`COW_PATHS` (multi-path, viewBox
+  ~"6 8 100 78", height define o tamanho, largura auto). A v22 usava cabeças
+  em silhueta (rejeitadas). Aplicados no chip do cabeçalho (por área), tela de
+  área, cartão de animal sem sexo, logo do header, página offline e admin.
+
 ## Ícones de touro e vaca (v22)
 
 - `ico('bull')` = cabeça de TOURO (silhueta cheia, fill currentColor, olho

@@ -192,7 +192,7 @@
 
 <header>
   <h1>
-    <svg viewBox="3 11 66 70" width="26" height="26" fill="#D8A521"><path fill-rule="evenodd" d="M8 54 C5 50 7 45 13 44 C12 39 15 34 23 34 C26 27 24 20 30 15 C34 19 35 26 38 31 C43 30 48 30 52 32 C56 26 63 26 66 31 C62 34 57 37 53 40 C58 46 60 52 56 58 C54 66 50 74 45 78 C44 70 42 64 38 60 C30 62 18 60 8 54 Z M20 47 L27 45 L28.5 50 L21.5 52 Z"/></svg>
+    <svg viewBox="6 8 100 78" height="26" fill="none" stroke="#D8A521" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"><g><path d="M18 44 C14 32 18 22 30 23 C40 24 44 27 52 25 C55 14 64 13 68 24 C72 19 82 20 87 25 C91 28 93 33 95 37"/><path d="M95 37 C98 40 99 44 97 48 C95 52 88 53 84 50 C82 48 80 47 78 47"/><path d="M78 47 C74 51 72 57 72 61"/><path d="M72 61 C60 65 46 65 36 62 C30 60 26 53 27 46"/><path d="M70 61 L69 80 M78 60 L79 80"/><path d="M31 62 L30 80 M41 62 L42 80"/><path d="M18 44 C12 50 12 60 16 67"/><path d="M87 24 C87 15 84 9 88 5 M93 28 C99 22 103 16 102 9"/><path d="M83 27 C86 22 92 22 94 27"/></g><circle cx="89" cy="34" r="2" fill="#D8A521"/></svg>
     ID-Bov
   </h1>
   <button id="btnArea" onclick="abrirTelaArea()" title="Trocar de área">CORTE</button>
@@ -863,14 +863,14 @@ function renderManejos(){
 }
 function escaparHTML(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// Cabeça de TOURO (silhueta cheia) e VACA (traço) — a partir das imagens de referência
-const BULL_SVG = ()=>`<path fill-rule="evenodd" d="M8 54 C5 50 7 45 13 44 C12 39 15 34 23 34 C26 27 24 20 30 15 C34 19 35 26 38 31 C43 30 48 30 52 32 C56 26 63 26 66 31 C62 34 57 37 53 40 C58 46 60 52 56 58 C54 66 50 74 45 78 C44 70 42 64 38 60 C30 62 18 60 8 54 Z M20 47 L27 45 L28.5 50 L21.5 52 Z"/>`;
-const COW_SVG = `<path d="M33 30 C25 32 18 40 16 49 C15 55 19 60 26 61 C33 62 42 60 48 55 C55 49 56 40 51 33"/><path d="M33 30 C30 22 29 15 32 10"/><path d="M45 32 C47 24 50 19 55 14"/><path d="M31 31 C25 28 19 29 16 34 C20 36 24 38 28 39"/><path d="M47 33 C53 29 60 30 63 35 C58 37 53 39 50 42"/><path d="M27 47 C30 45 33 45 35 48"/>`;
+// BOI (corpo inteiro, robusto) e VACA (corpo inteiro) — desenhos de linha
+const OX_PATHS = '<path d="M18 44 C14 32 18 22 30 23 C40 24 44 27 52 25 C55 14 64 13 68 24 C72 19 82 20 87 25 C91 28 93 33 95 37"/><path d="M95 37 C98 40 99 44 97 48 C95 52 88 53 84 50 C82 48 80 47 78 47"/><path d="M78 47 C74 51 72 57 72 61"/><path d="M72 61 C60 65 46 65 36 62 C30 60 26 53 27 46"/><path d="M70 61 L69 80 M78 60 L79 80"/><path d="M31 62 L30 80 M41 62 L42 80"/><path d="M18 44 C12 50 12 60 16 67"/><path d="M87 24 C87 15 84 9 88 5 M93 28 C99 22 103 16 102 9"/><path d="M83 27 C86 22 92 22 94 27"/><circle cx="89" cy="34" r="1.6" fill="currentColor" stroke="none"/>';
+const COW_PATHS = '<path d="M18 42 C15 33 19 26 30 27 C46 28 60 27 72 27 C78 23 85 24 89 29 C92 31 94 35 96 38"/><path d="M96 38 C99 41 100 45 98 49 C96 53 89 54 85 51 C83 49 81 48 79 48"/><path d="M79 48 C75 52 73 58 73 62"/><path d="M73 62 C62 65 40 65 34 62 C29 60 26 54 27 47"/><path d="M52 64 C52 69 57 70 59 66"/><path d="M71 62 L70 82 M79 61 L80 82"/><path d="M31 62 L30 82 M42 62 L43 82"/><path d="M18 42 C12 49 13 62 18 70"/><path d="M85 28 C86 23 86 20 83 18 M90 30 C93 26 94 23 94 19"/><path d="M80 30 C83 26 88 26 90 30"/><circle cx="86" cy="35" r="1.6" fill="currentColor" stroke="none"/>';
 
 // Ícones minimalistas (linha fina, herdam a cor do texto via currentColor)
 function ico(n, t=16){
-  if(n==='bull') return `<svg width="${t}" height="${t}" viewBox="3 11 66 70" fill="currentColor" style="vertical-align:-2px;flex:none">${BULL_SVG()}</svg>`;
-  if(n==='cow')  return `<svg width="${t}" height="${t}" viewBox="12 6 54 60" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex:none">${COW_SVG}</svg>`;
+  if(n==='bull') return `<svg height="${t}" viewBox="6 8 100 78" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex:none">${OX_PATHS}</svg>`;
+  if(n==='cow')  return `<svg height="${t}" viewBox="6 8 100 80" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex:none">${COW_PATHS}</svg>`;
   const d={
     casa:'<path d="M3 10.5l9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M10 20v-6h4v6"/>',
     prancheta:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6M9 12h6M9 16h4"/>',
