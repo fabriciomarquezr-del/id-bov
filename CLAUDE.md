@@ -41,6 +41,21 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
 - Edição propaga p/ nuvem: na mesclagem o lado local vence nos campos
   simples (`Object.assign({}, nuvem, local)`).
 
+## Áreas: Corte × Reprodução (v16)
+
+- Duas áreas independentes no mesmo app: `area` = 'corte' | 'reproducao'
+  (localStorage `idbov-area-v1`; sem campo = 'corte' → migração dos antigos).
+- Visual: só o FUNDO muda (decisão do usuário; botões continuam verdes):
+  `body.area-corte` azul-claro #E9F2FA, `body.area-reproducao` rosa leve
+  #FBEEF3. Chip `#btnArea` no cabeçalho troca de área; 1ª abertura mostra
+  `#telaArea` (dois cartões grandes).
+- Escopo por área: animais, manejos, contadores, sugestão/duplicidade de
+  brinco, manejo automático, Excel/CSV (coluna "Área", arquivo
+  id-bov-corte-... / id-bov-reproducao-...), importação (coluna Área roteia;
+  sem ela usa a área ativa). Nuvem/cofre levam `area` nos objetos.
+- Corte segue o fluxo padrão; alterações específicas da REPRODUÇÃO serão
+  definidas pelo usuário (aguardando especificação).
+
 ## Campos por manejo (painel do dia — v12)
 
 - Cada manejo tem `campos`: subconjunto de `['sexo','raca','idade','peso','obs']`
