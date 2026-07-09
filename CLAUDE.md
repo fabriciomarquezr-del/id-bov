@@ -41,6 +41,14 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
 - Edição propaga p/ nuvem: na mesclagem o lado local vence nos campos
   simples (`Object.assign({}, nuvem, local)`).
 
+## Ícones minimalistas (v19)
+
+- Sem emojis na interface (pedido do usuário): helper `ico(nome, tamanho)`
+  gera SVGs de linha fina (stroke 1.9, currentColor, estilo Feather) —
+  casa, prancheta, lápis, lixeira, balança, baixar/subir, pessoa, fone,
+  nota, boi, nuvem. Toasts são texto puro (sem símbolos decorativos);
+  ♂/♀/✓/⌫/← são glifos tipográficos e permaneceram.
+
 ## Propriedades (nível principal — v18)
 
 - `propriedades=[{id,nome,proprietario,contato,data}]` (localStorage

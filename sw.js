@@ -9,7 +9,7 @@
 //  • Pré-cache com {cache:'reload'} — fura o cache HTTP do Safari (era a
 //    causa das atualizações nunca chegarem ao iPhone).
 // ══════════════════════════════════════════════
-const CACHE = 'id-bov-v18';
+const CACHE = 'id-bov-v19';
 
 const PRE_CACHE = [
   './',
@@ -50,7 +50,7 @@ function comTimeout(promessa, ms){
 const PAGINA_OFFLINE = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ID-Bov</title></head>
 <body style="font-family:-apple-system,sans-serif;background:#F4F7F3;color:#182720;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px">
-<div><div style="font-size:3rem">🐄</div><h2>Sem internet agora</h2>
+<div><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#1B7A3D" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6c0 2 1.4 3.1 3 3.1M19.5 6c0 2-1.4 3.1-3 3.1"/><ellipse cx="12" cy="13.5" rx="5.2" ry="4.6"/><path d="M10 16.8c.55.5 1.2.7 2 .7s1.45-.2 2-.7"/><circle cx="10.2" cy="12.4" r=".45" fill="#1B7A3D"/><circle cx="13.8" cy="12.4" r=".45" fill="#1B7A3D"/></svg><h2>Sem internet agora</h2>
 <p style="color:#5A6353;line-height:1.5">O ID-Bov precisa de internet só nesta primeira abertura.<br>Feche o app e abra de novo quando a conexão voltar.</p></div></body></html>`;
 
 self.addEventListener('fetch', e => {
