@@ -1,0 +1,14 @@
+# Cabeçalhos servidos pelo Cloudflare Workers (assets estáticos).
+# index.html e sw.js NUNCA podem ficar presos no cache HTTP do navegador —
+# era uma das causas de o iPhone nunca receber as atualizações do app.
+/
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.json
+  Cache-Control: no-cache

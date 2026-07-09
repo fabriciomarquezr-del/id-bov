@@ -1311,7 +1311,8 @@ try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persis
 // Recupera do cofre ANTES de mesclar com a nuvem (a nuvem espera o cofre)
 const _cofrePronto = recuperarDoCofre();
 iniciarNuvem();
-if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+// updateViaCache:'none' — iPhone/Safari sempre confere o sw.js novo na rede
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).catch(()=>{});
 </script>
 </body>
 </html>

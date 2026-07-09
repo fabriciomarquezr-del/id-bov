@@ -110,6 +110,20 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
 - `localStorage` chave `idbov-excluidos-v1`: lápides `[ids]` (máx 500) para a
   mesclagem com a nuvem não ressuscitar animais apagados.
 
+## Service Worker (v14) — atualização/tela branca no iPhone
+
+Sintoma real (07/07/2026): PWA instalado no iPhone não recebia atualizações e
+abria em TELA BRANCA. Três causas corrigidas — NÃO regredir:
+1. `cache.addAll` sem `{cache:'reload'}` repovoava o cache novo com o
+   index.html VELHO vindo do cache HTTP do Safari (update nunca chegava).
+2. `respondWith` podia rejeitar (cache purgado pelo iOS + rede oscilando na
+   abertura) → tela branca até force-close.
+3. Cache-first na navegação atrasava o update para a 2ª abertura.
+Arquitetura atual: navegação REDE-PRIMEIRO com timeout (4s com cache; 20s sem)
+→ fallback cache → fallback página offline amigável (nunca fica sem resposta);
+demais recursos cache-first; registro com `updateViaCache:'none'`; `_headers`
+com `Cache-Control: no-cache` p/ index.html, sw.js e manifest.
+
 ## Proteção de dados (v8) — INCIDENTE REAL em 06/07/2026
 
 Usuário perdeu 47 animais cadastrados offline no curral (restaram só os 6 da
