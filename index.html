@@ -829,6 +829,13 @@ function toast(msg,dur=2400){
   t._tm=setTimeout(()=>t.classList.remove('show'),dur);
 }
 
+// Atualiza só a contagem do cabeçalho (chamado ao salvar cada animal, sem re-render completo)
+function atualizarBadge(){
+  const n=animaisDaArea().length;
+  const b=document.getElementById('badgeTotal');
+  if(b) b.textContent = n+(n===1?' animal':' animais');
+}
+
 // ── Tela inicial ──
 function renderHome(){
   aplicarArea();
@@ -1675,6 +1682,7 @@ function salvarAnimal(){
     obs:campo?campo.value.trim():'', data:Date.now()
   });
   salvar();
+  atualizarBadge();   // contagem no cabeçalho atualiza JÁ, sem sair do cadastro
   toast(w.brinco ? '✓ Animal '+w.brinco+' cadastrado' : '✓ Animal cadastrado (sem brinco)');
   // Vai direto para o próximo animal (assistente limpo, mesma sequência do manejo)
   w={ brinco:'', sexo:'', raca:'', categoria:'', idade:'', peso:'', passo:0, seq:w.seq };
