@@ -41,6 +41,22 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
 - Edição propaga p/ nuvem: na mesclagem o lado local vence nos campos
   simples (`Object.assign({}, nuvem, local)`).
 
+## Logo definitivo: cabeça de boi gerada pelo usuário (v27)
+
+- Usuário gerou o logo por IA (Gemini) — cabeça de boi de linha, fundo
+  transparente — e mandou o arquivo (livre de copyright de terceiros, ao
+  contrário das referências VectorStock anteriores). Fonte:
+  `logo-bull.png` (recortado das margens, alpha limpo por limiar em
+  `Downloads/Gemini_Generated_Image_*.png`, ~27KB, proporção w/h≈1.15).
+- Usado EXATAMENTE como está (sem redesenhar): embutido como data URI em
+  `LOGO_URI` e aplicado via **CSS mask** (`-webkit-mask/mask` +
+  `background-color:currentColor`) — a MESMA imagem recolore sozinha:
+  dourada no header/tela-área, azul no chip Corte, rosa no chip Reprodução.
+  `ico('logo')` gera o span mascarado (largura = altura×LOGO_ASP). Header
+  estático virou `#brandLogo` preenchido no init. admin.html e sw.js (offline)
+  embutem o mesmo data URI mascarado. Substitui todos os desenhos SVG de
+  boi/chifres anteriores (v22–v26).
+
 ## Logo v6: emblema de chifres dramáticos (v26)
 
 - Usuário mandou 2 referências (VectorStock, com marca d'água) pedindo
