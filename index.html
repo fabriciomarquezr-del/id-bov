@@ -186,6 +186,26 @@
       font-weight:800;font-size:0.9rem;padding:10px;border-radius:11px;cursor:pointer;
       -webkit-tap-highlight-color:transparent}
     .pill-tab.ativa{background:#fff;color:var(--green-deep);box-shadow:var(--shadow-sm)}
+
+    /* ── Relatórios ── */
+    .rel-filtro-grupo{margin-bottom:14px}
+    .rel-label{font-size:0.72rem;font-weight:800;color:var(--text-3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
+    .rel-chips{display:flex;flex-wrap:wrap;gap:7px}
+    .rel-chip{border:1.5px solid var(--border);background:#fff;color:var(--text-2);font-weight:700;font-size:0.82rem;padding:8px 13px;border-radius:999px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent}
+    .rel-chip.sel{border-color:rgba(27,122,61,.5);background:var(--green-light);color:var(--green-2)}
+    .rel-sec{display:flex;justify-content:space-between;align-items:center;width:100%;border:1.5px solid var(--border);background:#fff;color:var(--text-3);font-weight:700;font-size:0.88rem;padding:12px 14px;border-radius:12px;cursor:pointer;font-family:inherit;margin-bottom:8px;-webkit-tap-highlight-color:transparent}
+    .rel-sec.sel{border-color:rgba(27,122,61,.5);background:var(--green-light);color:var(--green-2)}
+    .rel-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
+    .rel-card h4{font-size:0.72rem;font-weight:800;color:var(--text-3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px}
+    .rel-bar-row{margin-bottom:10px}
+    .rel-bar-top{display:flex;justify-content:space-between;font-size:0.84rem;font-weight:700;margin-bottom:4px}
+    .rel-bar-top .v{color:var(--text-2);font-family:'Space Mono',monospace}
+    .rel-bar-track{height:9px;background:rgba(18,38,26,.08);border-radius:5px;overflow:hidden}
+    .rel-bar-fill{height:100%;background:var(--green);border-radius:5px}
+    .rel-num{display:flex;gap:10px;flex-wrap:wrap}
+    .rel-num .box{flex:1;min-width:80px;background:var(--green-light);border-radius:12px;padding:12px;text-align:center}
+    .rel-num .box .n{font-family:'Space Mono',monospace;font-weight:700;font-size:1.5rem;color:var(--green-deep)}
+    .rel-num .box .l{font-size:0.7rem;color:var(--text-2);font-weight:700;margin-top:2px}
   </style>
 </head>
 <body>
@@ -256,6 +276,7 @@
     <div id="filtroBar" style="margin-top:12px"></div>
     <div class="list-header">Animais cadastrados</div>
     <div id="lista"></div>
+    <button class="btn-claro" style="display:flex;align-items:center;justify-content:center;gap:8px;border-color:rgba(27,122,61,.4);background:var(--green-light);color:var(--green-2);font-weight:800" onclick="abrirRelatorio()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg> Relatórios</button>
     <button id="btnExportar" class="btn-claro" style="display:none" onclick="exportarExcel()" style="display:none;align-items:center;justify-content:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> Exportar planilha (Excel)</button>
     <button class="btn-claro" onclick="document.getElementById('importInput').click()" style="display:flex;align-items:center;justify-content:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 8l5-5 5 5"/><path d="M12 3v12"/></svg> Importar planilha (recuperar dados)</button>
     <input type="file" id="importInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarPlanilha(this.files)">
@@ -290,6 +311,26 @@
 </div>
 
 <!-- ══ TELA: ESCOLHER ÁREA (Corte / Reprodução) ══ -->
+<!-- ══ TELA: RELATÓRIOS ══ -->
+<div id="telaRelatorio" style="display:none;position:fixed;inset:0;z-index:130;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <header style="background:var(--green-deep);color:#fff;display:flex;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;position:sticky;top:0;z-index:2">
+    <button onclick="fecharRelatorio()" style="background:rgba(255,255,255,.14);border:none;color:#fff;border-radius:10px;padding:8px 13px;font-weight:800;cursor:pointer;font-size:0.9rem;font-family:inherit">← Voltar</button>
+    <div style="font-weight:800;font-size:1.05rem;font-family:'Manrope',sans-serif">Relatórios</div>
+  </header>
+  <div style="max-width:560px;margin:0 auto;padding:18px 16px calc(40px + env(safe-area-inset-bottom))">
+    <!-- Configuração -->
+    <div id="relConfig">
+      <div class="rel-label" style="font-size:0.9rem;color:var(--green-deep);margin-bottom:12px">Filtrar animais</div>
+      <div id="relFiltros"></div>
+      <div class="rel-label" style="font-size:0.9rem;color:var(--green-deep);margin:18px 0 10px">O que mostrar no relatório</div>
+      <div id="relSecoes"></div>
+      <button class="btn-grande" style="margin-top:8px" onclick="gerarRelatorio()">Gerar relatório</button>
+    </div>
+    <!-- Resultado -->
+    <div id="relResultado" style="display:none"></div>
+  </div>
+</div>
+
 <div id="telaArea" style="display:none;position:fixed;inset:0;z-index:120;background:var(--green-deep);overflow-y:auto;padding:24px">
   <div style="max-width:400px;margin:8vh auto 0;text-align:center">
     <div id="areaLogo" style="color:#D8A521;display:flex;justify-content:center"></div>
@@ -1127,6 +1168,184 @@ function novoId(){
   if(id<=_ultimoId) id=_ultimoId+1;
   _ultimoId=id;
   return id;
+}
+
+// ══════════════════════════════════════════════
+//  RELATÓRIOS — filtros + seções selecionáveis
+// ══════════════════════════════════════════════
+let relCfg=null, _relAnimaisCache=[];
+function relDefault(){
+  return {
+    filtros:{ sexo:null, raca:null, categoria:null, idade:null, manejoId:null },
+    secoes:{ resumo:true, raca:true, categoria:(area==='reproducao'), idade:true, peso:true, manejo:false, lista:false }
+  };
+}
+function abrirRelatorio(){
+  relCfg=relDefault();
+  document.getElementById('relResultado').style.display='none';
+  document.getElementById('relConfig').style.display='block';
+  renderRelConfig();
+  document.getElementById('telaRelatorio').style.display='block';
+  window.scrollTo(0,0);
+}
+function fecharRelatorio(){ document.getElementById('telaRelatorio').style.display='none'; }
+function voltarConfigRelatorio(){
+  document.getElementById('relResultado').style.display='none';
+  document.getElementById('relConfig').style.display='block';
+  window.scrollTo(0,0);
+}
+function relSetFiltro(campo,val){ relCfg.filtros[campo]=(val==='__null__'?null:val); renderRelConfig(); }
+function relToggleSecao(k){ relCfg.secoes[k]=!relCfg.secoes[k]; renderRelConfig(); }
+
+function _relChipGroup(label,campo,opcoes){
+  const atual=relCfg.filtros[campo];
+  const todos=[{v:null,l:'Todos'},...opcoes];
+  const chips=todos.map(o=>{
+    const val=o.v===null?'__null__':String(o.v);
+    return `<button class="rel-chip${atual===o.v?' sel':''}" onclick="relSetFiltro('${campo}','${val.replace(/'/g,"\\'")}')">${escaparHTML(o.l)}</button>`;
+  }).join('');
+  return `<div class="rel-filtro-grupo"><div class="rel-label">${label}</div><div class="rel-chips">${chips}</div></div>`;
+}
+function renderRelConfig(){
+  let html =_relChipGroup('Sexo','sexo',[{v:'M',l:'Macho'},{v:'F',l:'Fêmea'}]);
+  html+=_relChipGroup('Raça','raca',[{v:'Nelore',l:'Nelore'},{v:'Cruzado',l:'Cruzado'}]);
+  if(area==='reproducao') html+=_relChipGroup('Categoria','categoria',CATEGORIAS.map(c=>({v:c,l:c})));
+  html+=_relChipGroup('Idade','idade',IDADES.map(i=>({v:i.v,l:i.l})));
+  const mans=manejosDaArea();
+  if(mans.length) html+=_relChipGroup('Manejo','manejoId',mans.map(m=>({v:String(m.id),l:m.nome})));
+  document.getElementById('relFiltros').innerHTML=html;
+
+  const secDefs=[
+    ['resumo','Resumo geral (total, machos, fêmeas)'],
+    ['raca','Distribuição por raça'],
+    ...(area==='reproducao'?[['categoria','Distribuição por categoria']]:[]),
+    ['idade','Distribuição por idade'],
+    ['peso','Peso (média, menor, maior)'],
+    ['manejo','Distribuição por manejo'],
+    ['lista','Lista completa de animais']
+  ];
+  document.getElementById('relSecoes').innerHTML=secDefs.map(([k,l])=>
+    `<button class="rel-sec${relCfg.secoes[k]?' sel':''}" onclick="relToggleSecao('${k}')"><span>${l}</span><span style="font-weight:800">${relCfg.secoes[k]?'✓':'○'}</span></button>`).join('');
+}
+
+function relFiltrarAnimais(){
+  const f=relCfg.filtros;
+  return animaisDaArea().filter(a=>
+    (!f.sexo || a.sexo===f.sexo) &&
+    (!f.raca || a.raca===f.raca) &&
+    (!f.categoria || a.categoria===f.categoria) &&
+    (!f.idade || a.idade===f.idade) &&
+    (!f.manejoId || String(a.manejoId)===f.manejoId)
+  );
+}
+function _relDist(animais, keyFn, ordem){
+  const map={};
+  animais.forEach(a=>{ const k=keyFn(a); if(k==null||k==='') return; map[k]=(map[k]||0)+1; });
+  const tot=animais.length||1;
+  let entries = ordem ? ordem.filter(o=>map[o.l||o.v]!=null||map[o.v]!=null).map(o=>[o.l, map[o.v]||map[o.l]]) : Object.entries(map).sort((a,b)=>b[1]-a[1]);
+  return entries.filter(e=>e[1]).map(([l,c])=>({l,c,pct:Math.round(c*100/tot)}));
+}
+function _relBars(titulo, dist){
+  if(!dist.length) return '';
+  const max=Math.max(...dist.map(d=>d.c),1);
+  const rows=dist.map(d=>`<div class="rel-bar-row"><div class="rel-bar-top"><span>${escaparHTML(d.l)}</span><span class="v">${d.c} · ${d.pct}%</span></div><div class="rel-bar-track"><div class="rel-bar-fill" style="width:${Math.round(d.c*100/max)}%"></div></div></div>`).join('');
+  return `<div class="rel-card"><h4>${titulo}</h4>${rows}</div>`;
+}
+
+function gerarRelatorio(){
+  const animais=relFiltrarAnimais();
+  _relAnimaisCache=animais;
+  const S=relCfg.secoes, f=relCfg.filtros;
+  const rotArea=area==='corte'?'Bovinos de Corte':'Bovinos de Reprodução';
+  const rotProp=propriedadeAtualId?nomeProp(propriedadeAtualId):'Geral';
+  let html=`<div style="margin-bottom:14px"><div style="font-weight:800;font-size:1.15rem;color:var(--green-deep)">Relatório</div><div style="font-size:0.82rem;color:var(--text-2);margin-top:2px">${rotArea} · ${escaparHTML(rotProp)} · ${new Date().toLocaleDateString('pt-BR')}</div></div>`;
+  const ativos=[];
+  if(f.sexo) ativos.push(f.sexo==='M'?'Machos':'Fêmeas');
+  if(f.raca) ativos.push(f.raca);
+  if(f.categoria) ativos.push(f.categoria);
+  if(f.idade) ativos.push(labelIdade(f.idade));
+  if(f.manejoId) ativos.push(nomeManejo(parseInt(f.manejoId,10)));
+  if(ativos.length) html+=`<div style="margin-bottom:12px">${ativos.map(a=>`<span class="chip" style="margin:0 6px 6px 0">${escaparHTML(a)}</span>`).join('')}</div>`;
+
+  if(!animais.length){
+    html+=`<div class="rel-card" style="text-align:center;color:var(--text-3)">Nenhum animal encontrado com esses filtros.</div>`;
+  } else {
+    if(S.resumo){
+      const m=animais.filter(a=>a.sexo==='M').length, fem=animais.filter(a=>a.sexo==='F').length;
+      html+=`<div class="rel-card"><h4>Resumo geral</h4><div class="rel-num"><div class="box"><div class="n">${animais.length}</div><div class="l">Animais</div></div><div class="box"><div class="n">${m}</div><div class="l">Machos</div></div><div class="box"><div class="n">${fem}</div><div class="l">Fêmeas</div></div></div></div>`;
+    }
+    if(S.raca) html+=_relBars('Por raça', _relDist(animais,a=>a.raca));
+    if(S.categoria && area==='reproducao') html+=_relBars('Por categoria', _relDist(animais,a=>a.categoria, CATEGORIAS.map(c=>({v:c,l:c}))));
+    if(S.idade) html+=_relBars('Por idade', _relDist(animais,a=>a.idade, IDADES));
+    if(S.manejo) html+=_relBars('Por manejo', _relDist(animais,a=>nomeManejo(a.manejoId)||'Sem manejo'));
+    if(S.peso){
+      const ps=animais.filter(a=>a.peso).map(a=>a.peso);
+      if(ps.length){
+        const med=Math.round(ps.reduce((x,y)=>x+y,0)/ps.length);
+        html+=`<div class="rel-card"><h4>Peso</h4><div class="rel-num"><div class="box"><div class="n">${med}</div><div class="l">Média (kg)</div></div><div class="box"><div class="n">${Math.min(...ps)}</div><div class="l">Menor</div></div><div class="box"><div class="n">${Math.max(...ps)}</div><div class="l">Maior</div></div></div><div style="font-size:0.76rem;color:var(--text-3);margin-top:8px">${ps.length} de ${animais.length} animais pesados</div></div>`;
+      } else html+=`<div class="rel-card"><h4>Peso</h4><div style="color:var(--text-3);font-size:0.85rem">Nenhum animal pesado neste filtro.</div></div>`;
+    }
+    if(S.lista){
+      const linhas=[...animais].sort((a,b)=>String(a.brinco||'').localeCompare(String(b.brinco||''))).map(a=>{
+        const c=[labelSexo(a.sexo),a.raca,a.categoria||'',labelIdade(a.idade),a.peso?a.peso+' kg':''].filter(Boolean).join(' · ');
+        return `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed var(--border-2);font-size:0.82rem"><b class="mono" style="color:var(--green-deep);white-space:nowrap">${a.brinco||'— s/b'}</b><span style="color:var(--text-2);text-align:right">${c||'—'}</span></div>`;
+      }).join('');
+      html+=`<div class="rel-card"><h4>Lista de animais (${animais.length})</h4>${linhas}</div>`;
+    }
+  }
+  html+=`<button class="btn-grande" style="margin-top:6px" onclick="compartilharRelatorio()">Compartilhar resumo</button>`;
+  if(animais.length) html+=`<button class="btn-claro" onclick="exportarRelatorioExcel()">Exportar animais filtrados (Excel)</button>`;
+  html+=`<button class="btn-claro" onclick="voltarConfigRelatorio()">Mudar filtros</button>`;
+
+  document.getElementById('relResultado').innerHTML=html;
+  document.getElementById('relConfig').style.display='none';
+  document.getElementById('relResultado').style.display='block';
+  window.scrollTo(0,0);
+}
+
+function _relTextoResumo(){
+  const animais=_relAnimaisCache, S=relCfg.secoes, f=relCfg.filtros;
+  const rotArea=area==='corte'?'Bovinos de Corte':'Bovinos de Reprodução';
+  const rotProp=propriedadeAtualId?nomeProp(propriedadeAtualId):'Geral';
+  let t=`Relatório ID-Bov\n${rotArea} · ${rotProp}\n${new Date().toLocaleDateString('pt-BR')}\n`;
+  const ativos=[];
+  if(f.sexo) ativos.push(f.sexo==='M'?'Machos':'Fêmeas');
+  if(f.raca) ativos.push(f.raca);
+  if(f.categoria) ativos.push(f.categoria);
+  if(f.idade) ativos.push(labelIdade(f.idade));
+  if(f.manejoId) ativos.push(nomeManejo(parseInt(f.manejoId,10)));
+  if(ativos.length) t+=`Filtros: ${ativos.join(', ')}\n`;
+  t+=`\nTotal: ${animais.length} animais`;
+  if(S.resumo) t+=`\nMachos: ${animais.filter(a=>a.sexo==='M').length} · Fêmeas: ${animais.filter(a=>a.sexo==='F').length}`;
+  const dist=(tit,d)=>d.length?`\n\n${tit}:\n`+d.map(x=>`- ${x.l}: ${x.c} (${x.pct}%)`).join('\n'):'';
+  if(S.raca) t+=dist('Por raça', _relDist(animais,a=>a.raca));
+  if(S.categoria && area==='reproducao') t+=dist('Por categoria', _relDist(animais,a=>a.categoria,CATEGORIAS.map(c=>({v:c,l:c}))));
+  if(S.idade) t+=dist('Por idade', _relDist(animais,a=>a.idade,IDADES));
+  if(S.manejo) t+=dist('Por manejo', _relDist(animais,a=>nomeManejo(a.manejoId)||'Sem manejo'));
+  if(S.peso){ const ps=animais.filter(a=>a.peso).map(a=>a.peso); if(ps.length) t+=`\n\nPeso médio: ${Math.round(ps.reduce((x,y)=>x+y,0)/ps.length)} kg`; }
+  return t;
+}
+async function compartilharRelatorio(){
+  const t=_relTextoResumo();
+  try{
+    if(navigator.share){ await navigator.share({text:t}); }
+    else { await navigator.clipboard.writeText(t); toast('Resumo copiado — cole no WhatsApp'); }
+  }catch(e){ try{ await navigator.clipboard.writeText(t); toast('Resumo copiado'); }catch(_){} }
+}
+function exportarRelatorioExcel(){
+  if(typeof XLSX==='undefined'){ toast('Preciso de internet uma vez para gerar o Excel'); return; }
+  const animais=_relAnimaisCache;
+  if(!animais.length){ toast('Nenhum animal para exportar'); return; }
+  const rotArea=area==='corte'?'Corte':'Reprodução';
+  const linhas=animais.map(a=>{
+    const o={'Área':rotArea,'Propriedade':nomeProp(a.propId)||'Geral','Brinco':a.brinco,'Sexo':labelSexo(a.sexo),'Raça':a.raca};
+    if(area==='reproducao') o['Categoria']=a.categoria||'';
+    return Object.assign(o,{'Idade (categoria)':labelIdade(a.idade),'Peso atual (kg)':a.peso||'','Manejo':nomeManejo(a.manejoId)||'','Observação':a.obs||'','Data de cadastro':new Date(a.data).toLocaleString('pt-BR')});
+  });
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(linhas), 'Relatório');
+  XLSX.writeFile(wb, 'id-bov-relatorio-'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('Relatório exportado');
 }
 
 // ── Assistente passo a passo ──

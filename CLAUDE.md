@@ -268,6 +268,19 @@ Proteções implementadas — NÃO REMOVER:
 - **Linha de status `#syncInfo`** na home: sem conta / aguardando internet /
   nuvem em dia.
 
+## Relatórios (v30)
+
+- Botão "Relatórios" na home (painelAnimais) abre `#telaRelatorio` (tela cheia).
+- Config: FILTROS (chips de grupo, "Todos" default) por sexo/raça/idade/
+  categoria(reprod)/manejo, aplicados sobre `animaisDaArea()` (já escopado por
+  área+propriedade); + SEÇÕES selecionáveis (toggles `.rel-sec`): resumo,
+  raça, categoria, idade, peso, manejo, lista.
+- `gerarRelatorio()` renderiza cartões com números grandes (`.rel-num`) e
+  gráficos de barra (`.rel-bar-*`, contagem+%); helper `_relDist()`.
+- Ações: "Compartilhar resumo" (`navigator.share` texto p/ WhatsApp, fallback
+  clipboard), "Exportar animais filtrados (Excel)" (SheetJS, só os filtrados),
+  "Mudar filtros". `_relAnimaisCache` guarda o conjunto do último relatório.
+
 ## Login obrigatório + isolamento por conta (v28)
 
 - Porta de login (`#telaLogin`, z-index 200) cobre tudo por padrão; app só
