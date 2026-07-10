@@ -1753,6 +1753,8 @@ let _nuvemCount=0;       // quantos animais a nuvem tinha na última leitura (tr
 let _syncTimer=null, _pendente=false, _erroMostrado=false;
 let _loginTimeout=null;
 let _dadosCadastro=null;   // nome/sobrenome/telefone digitados no cadastro
+let _fichaOk=false;        // ficha em contas/{uid} confirmada na nuvem
+const CAD_KEY='idbov-cadastro-pendente';
 
 function carregarExcluidos(){ try{ excluidos = JSON.parse(localStorage.getItem(EXC_KEY)) || []; }catch(e){ excluidos=[]; } }
 function salvarExcluidos(){ try{ localStorage.setItem(EXC_KEY, JSON.stringify(excluidos.slice(-500))); }catch(e){} }
@@ -1768,9 +1770,9 @@ function iniciarNuvem(){
     try{ _db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
     _auth.onAuthStateChanged(onAuthMudou);
     // Reenvio insistente: ao voltar a internet, ao voltar para o app e a cada 30s
-    window.addEventListener('online', ()=>{ if(_pendente) empurrarNuvem(); });
+    window.addEventListener('online', ()=>{ tentarFicha(); if(_pendente) empurrarNuvem(); });
     document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && _pendente) empurrarNuvem(); });
-    setInterval(()=>{ if(_pendente && _uid && navigator.onLine) empurrarNuvem(); }, 30000);
+    setInterval(()=>{ if(_uid && navigator.onLine){ tentarFicha(); if(_pendente) empurrarNuvem(); } }, 30000);
   }catch(e){ console.error('iniciarNuvem:',e); }
 }
 
@@ -1852,6 +1854,7 @@ async function loginCriar(){
   if(sn.length<6){ cadErro('A senha precisa de ao menos 6 caracteres.'); return; }
   cadErro('');
   _dadosCadastro={ nome, sobrenome:sobre, telefone:whats };
+  try{ localStorage.setItem(CAD_KEY, JSON.stringify(_dadosCadastro)); }catch(e){}
   try{ await _auth.createUserWithEmailAndPassword(em,sn); }
   catch(e){ _dadosCadastro=null; cadErro(traduzErroAuth(e)); }
 }
@@ -1879,11 +1882,24 @@ async function loginRedefinir(){
 // Ficha da conta (coleção contas/{uid}) — alimenta o painel do dono.
 // Se a conta estiver BLOQUEADA, desconecta e avisa. Sem internet, segue local.
 async function registrarConta(){
-  try{
-    const ref=_db.collection('contas').doc(_uid);
-    const doc=await ref.get();
-    if(!doc.exists){
-      const x=_dadosCadastro||{};
+  _fichaOk=false;
+  const ref=_db.collection('contas').doc(_uid);
+
+  let doc;
+  try{ doc = await ref.get(); }
+  catch(e){ avisarFicha('leitura', e); return true; }   // sem internet/permissão: segue local-first
+
+  if(doc.exists && doc.data().bloqueada===true){
+    _nuvemOk=false; _uid=null; _email='';
+    try{ await _auth.signOut(); }catch(e){}
+    atualizarDotNuvem();
+    toast('Esta conta está bloqueada. Fale com o suporte do ID-Bov.', 8000);
+    return false;
+  }
+
+  if(!doc.exists){
+    const x=_dadosCadastro || lerCadastroPendente() || {};
+    try{
       await ref.set({
         email:_email,
         nome:x.nome||'', sobrenome:x.sobrenome||'', telefone:x.telefone||'',
@@ -1891,22 +1907,30 @@ async function registrarConta(){
         ultimoAcesso: firebase.firestore.FieldValue.serverTimestamp(),
         bloqueada:false
       });
-      _dadosCadastro=null;
-      return true;
-    }
-    if(doc.data().bloqueada===true){
-      _nuvemOk=false; _uid=null; _email='';
-      try{ await _auth.signOut(); }catch(e){}
-      atualizarDotNuvem();
-      toast('Esta conta está bloqueada. Fale com o suporte do ID-Bov.', 8000);
-      return false;
-    }
-    ref.set({email:_email, ultimoAcesso: firebase.firestore.FieldValue.serverTimestamp()},{merge:true}).catch(()=>{});
+      _fichaOk=true; _dadosCadastro=null;
+      try{ localStorage.removeItem(CAD_KEY); }catch(e){}
+    }catch(e){ avisarFicha('criação', e); }   // tenta de novo no próximo login/reenvio
     return true;
-  }catch(e){
-    console.error('registrarConta:', e);
-    return true;   // provável falta de internet: o app continua local-first
   }
+
+  _fichaOk=true;
+  try{ localStorage.removeItem(CAD_KEY); }catch(e){}
+  ref.set({email:_email, ultimoAcesso: firebase.firestore.FieldValue.serverTimestamp()},{merge:true}).catch(()=>{});
+  return true;
+}
+
+// A ficha é o que faz a conta aparecer no painel do dono: falhar calado esconde o problema.
+function avisarFicha(etapa, e){
+  console.error('registrarConta ('+etapa+'):', e);
+  if(e && e.code==='permission-denied')
+    toast('Sua conta foi criada, mas o cadastro dela na nuvem foi recusado (regras do Firestore). Avise o suporte do ID-Bov.', 9000);
+}
+
+// Reenvio da ficha: se a gravação falhou (offline ou regra), tenta de novo sozinho.
+function tentarFicha(){ if(_db && _uid && !_fichaOk) registrarConta().catch(()=>{}); }
+
+function lerCadastroPendente(){
+  try{ return JSON.parse(localStorage.getItem(CAD_KEY)); }catch(e){ return null; }
 }
 
 function docNuvem(){ return _db.collection('idbov').doc(_uid); }
