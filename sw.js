@@ -9,11 +9,16 @@
 //  • Pré-cache com {cache:'reload'} — fura o cache HTTP do Safari (era a
 //    causa das atualizações nunca chegarem ao iPhone).
 // ══════════════════════════════════════════════
-const CACHE = 'id-bov-v35';
+const CACHE = 'id-bov-v36';
+
+// O app é guardado SEMPRE sob a chave './'. Pedir '/index.html' ao servidor
+// devolve um 307 para '/', e o Safari recusa uma navegação servida pelo SW que
+// tenha passado por redirecionamento ("Response served by service worker has
+// redirections") — era isso que quebrava o ícone do PWA no iPhone a cada versão.
+const CHAVE_APP = './';
 
 const PRE_CACHE = [
   './',
-  './index.html',
   './manifest.json',
   './icon.svg'
 ];
@@ -40,6 +45,14 @@ self.addEventListener('activate', e => {
   );
 });
 
+// Rede de segurança: o Safari derruba a navegação se a resposta trouxer a marca
+// de redirecionamento. Reembrulhar o corpo apaga essa marca.
+async function semRedirecionamento(resp){
+  if (!resp || !resp.redirected) return resp;
+  const corpo = await resp.blob();
+  return new Response(corpo, {status: resp.status, statusText: resp.statusText, headers: resp.headers});
+}
+
 function comTimeout(promessa, ms){
   return new Promise((res, rej) => {
     const t = setTimeout(() => rej(new Error('timeout')), ms);
@@ -64,16 +77,21 @@ self.addEventListener('fetch', e => {
     const ehApp = /(\/|index\.html)$/.test(new URL(e.request.url).pathname);
     if (!ehApp) return;
     e.respondWith((async () => {
-      const cacheado = await caches.match('./index.html');
+      const cacheado = await caches.match(CHAVE_APP);
       try {
+        // Busca a RAIZ, nunca '/index.html' (que responde 307 e faria o Safari
+        // recusar a navegação). O ícone antigo do iPhone ainda pede
+        // '/index.html' — é aqui que a URL vira a raiz e ele volta a abrir.
+        const alvo = new URL(e.request.url);
+        alvo.pathname = alvo.pathname.replace(/index\.html$/, '');
         // Com cache disponível espera pouco pela rede; sem cache, espera mais
-        const resp = await comTimeout(fetch(e.request.url, {cache:'no-cache'}), cacheado ? 4000 : 20000);
+        let resp = await comTimeout(fetch(alvo.href, {cache:'no-cache'}), cacheado ? 4000 : 20000);
         if (resp && resp.status === 200) {
           const copia = resp.clone();
-          caches.open(CACHE).then(c => { c.put('./index.html', copia); }).catch(() => {});
-          return resp;
+          caches.open(CACHE).then(c => { c.put(CHAVE_APP, copia); }).catch(() => {});
+          return await semRedirecionamento(resp);
         }
-        return cacheado || resp;
+        return cacheado || await semRedirecionamento(resp);
       } catch (err) {
         if (cacheado) return cacheado;
         // Último recurso: aviso amigável — NUNCA tela branca
