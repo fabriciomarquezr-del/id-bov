@@ -41,6 +41,21 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
 - Edição propaga p/ nuvem: na mesclagem o lado local vence nos campos
   simples (`Object.assign({}, nuvem, local)`).
 
+## Logo v6: emblema de chifres dramáticos (v26)
+
+- Usuário mandou 2 referências (VectorStock, com marca d'água) pedindo
+  réplica EXATA. Expliquei que não posso reproduzir arquivo comercial com
+  copyright (nem usar a versão com marca d'água) — ofereci 3 caminhos
+  (comprar licença / enviar imagem livre / eu desenhar original); usuário
+  escolheu "continuar desenhando do zero".
+- Redesenhado com proporção mais próxima das referências: chifres LONGOS e
+  dramáticos convergindo no centro (HORNS_PATH) + focinho pequeno tipo gota
+  fundido na base (HEAD_PATH, bem menor que a v25 — não é mais uma "cabeça
+  redonda", é quase só os chifres). viewBox "0 0 100 80".
+- **Isso é interpretação original, não cópia.** Se o usuário quiser o
+  arquivo idêntico à referência, só é possível comprando a licença na
+  VectorStock e enviando o arquivo sem marca d'água.
+
 ## Logo refeito: cabeça de boi de verdade (v25)
 
 - v24 lia como uma folha/garra abstrata (feedback do usuário: "isso se
