@@ -190,13 +190,34 @@
 </head>
 <body>
 
+<!-- ══ PORTA DE LOGIN (obrigatória) ══ -->
+<div id="telaLogin" style="position:fixed;inset:0;z-index:200;background:var(--green-deep);overflow-y:auto;padding:24px">
+  <div style="max-width:380px;margin:6vh auto 0;text-align:center">
+    <div id="loginLogo" style="color:#D8A521;display:flex;justify-content:center"></div>
+    <h2 style="color:#fff;font-weight:800;font-size:1.5rem;margin:10px 0 2px;font-family:'Manrope',sans-serif">ID-Bov</h2>
+    <p style="color:rgba(255,255,255,.72);font-size:0.9rem;margin-bottom:22px">Identificação de bovinos</p>
+    <div id="loginCarregando" style="color:rgba(255,255,255,.75);font-size:0.9rem;padding:24px">Verificando acesso…</div>
+    <div id="loginForm" style="display:none;background:#fff;border-radius:18px;padding:20px;text-align:left;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+      <div style="font-weight:800;color:var(--green-deep);font-size:1.05rem;margin-bottom:4px">Entrar na sua conta</div>
+      <div style="font-size:0.78rem;color:var(--text-2);margin-bottom:14px">Primeira vez? Toque em <b>"Criar conta nova"</b>.</div>
+      <div id="loginErro" style="display:none;background:var(--red-light);color:var(--red);border-radius:10px;padding:9px 12px;font-size:0.8rem;font-weight:700;margin-bottom:10px"></div>
+      <input id="loginEmail" type="email" placeholder="E-mail" autocomplete="email" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);margin-bottom:10px;outline:none;font-family:inherit;font-size:16px">
+      <input id="loginSenha" type="password" placeholder="Senha (mín. 6)" autocomplete="current-password" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);margin-bottom:12px;outline:none;font-family:inherit;font-size:16px">
+      <button class="btn-grande" style="font-size:1.05rem;padding:16px;margin-bottom:9px" onclick="loginEntrar()">Entrar</button>
+      <button class="btn-claro" style="margin-top:0" onclick="loginCriar()">Criar conta nova</button>
+      <button class="btn-claro" style="margin-top:9px;border:none;background:transparent;color:var(--text-2)" onclick="loginRedefinir()">Esqueci a senha</button>
+    </div>
+    <div id="loginOffline" style="display:none;color:rgba(255,255,255,.82);font-size:0.9rem;line-height:1.55;padding:18px">Sem internet agora. O primeiro acesso precisa de conexão — conecte-se e abra o app de novo. Depois de entrar uma vez, o app funciona offline no campo.</div>
+  </div>
+</div>
+
 <header>
   <h1>
     <span id="brandLogo" style="color:#D8A521;display:inline-flex;align-items:center"></span>
     ID-Bov
   </h1>
   <button id="btnArea" onclick="abrirTelaArea()" title="Trocar de área">CORTE</button>
-  <button class="btn-header" id="btnNuvem" onclick="abrirNuvem()" title="Nuvem / conta">
+  <button class="btn-header" id="btnNuvem" onclick="abrirNuvem()" title="Minha conta">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.6A4 4 0 0 0 6.5 18z"/></svg>
     <span id="nuvemDot"></span>
   </button>
@@ -469,6 +490,7 @@ function salvar(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(rebanho)); }
 //  mostram só a área ativa. Dados antigos são da área de CORTE.
 // ══════════════════════════════════════════════
 const AREA_KEY='idbov-area-v1';
+const OWNER_KEY='idbov-owner-uid';
 let area='corte';
 function areaDe(x){ return x && x.area==='reproducao' ? 'reproducao' : 'corte'; }
 function animaisDaArea(){ return rebanho.filter(a=>areaDe(a)===area && propDe(a)===propriedadeAtualId); }
@@ -1457,6 +1479,7 @@ let _auth=null, _db=null, _uid=null, _email='';
 let _nuvemOk=false;      // trava: só grava na nuvem depois de ler o estado dela
 let _nuvemCount=0;       // quantos animais a nuvem tinha na última leitura (trava anti-perda)
 let _syncTimer=null, _pendente=false, _erroMostrado=false;
+let _loginTimeout=null;
 
 function carregarExcluidos(){ try{ excluidos = JSON.parse(localStorage.getItem(EXC_KEY)) || []; }catch(e){ excluidos=[]; } }
 function salvarExcluidos(){ try{ localStorage.setItem(EXC_KEY, JSON.stringify(excluidos.slice(-500))); }catch(e){} }
@@ -1467,6 +1490,7 @@ function iniciarNuvem(){
     // App NOMEADO 'idbov': sessão isolada de qualquer outro app Firebase
     const app = firebase.apps.find(a=>a.name==='idbov') || firebase.initializeApp(FIREBASE_CFG,'idbov');
     _auth = app.auth(); _auth.languageCode='pt';
+    try{ _auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); }catch(e){}
     _db = app.firestore();
     try{ _db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
     _auth.onAuthStateChanged(onAuthMudou);
@@ -1478,16 +1502,70 @@ function iniciarNuvem(){
 }
 
 async function onAuthMudou(user){
+  clearTimeout(_loginTimeout);
   _uid = user ? user.uid : null;
   _email = user ? (user.email||'') : '';
   if(_uid){
     const liberada = await registrarConta();   // ficha p/ o painel do dono + checa bloqueio
-    if(!liberada) return;                       // conta bloqueada: já deslogou
-    try{ await _cofrePronto; }catch(e){}       // cofre primeiro: mescla com o estado completo
+    if(!liberada) return;                       // conta bloqueada: já deslogou (virá onAuthMudou(null))
+    try{ await _cofrePronto; }catch(e){}       // espera o cofre terminar antes de decidir
+    // ISOLAMENTO POR CONTA: se este aparelho tinha dados de OUTRO usuário, limpa
+    // (cada cliente só vê o próprio rebanho, mesmo em aparelho compartilhado)
+    const donoAnterior = localStorage.getItem(OWNER_KEY);
+    if(donoAnterior && donoAnterior !== _uid){ await limparDadosLocais(); }
+    try{ localStorage.setItem(OWNER_KEY, _uid); }catch(e){}
     await puxarEMesclar();
+    esconderLoginGate();
+    renderHome();
+    if(!localStorage.getItem(AREA_KEY)) abrirTelaArea();   // conta nova: escolher área
   }
-  else { _nuvemOk=false; }
+  else { _nuvemOk=false; mostrarLoginGate(); }
   atualizarDotNuvem();
+}
+
+// Limpa todos os dados locais (troca de conta no mesmo aparelho)
+async function limparDadosLocais(){
+  rebanho=[]; manejos=[]; propriedades=[]; excluidos=[]; manejosExcluidos=[]; propriedadesExcluidas=[];
+  manejoAtualId=null; propriedadeAtualId=null; filtroManejoId=null; abaHome='animais'; area='corte';
+  [DB_KEY, EXC_KEY, MAN_KEY, MAN_ATUAL_KEY, MAN_EXC_KEY, PROP_KEY, PROP_ATUAL_KEY, PROP_EXC_KEY, AREA_KEY]
+    .forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+  try{ const db=await _abrirIDB(); if(db) db.transaction(IDB_STORE,'readwrite').objectStore(IDB_STORE).delete('backup'); }catch(e){}
+}
+
+// ── Porta de login (obrigatória para entrar) ──
+function esconderLoginGate(){ const g=document.getElementById('telaLogin'); if(g) g.style.display='none'; }
+function mostrarLoginGate(){
+  const g=document.getElementById('telaLogin'); if(!g) return;
+  g.style.display='block';
+  document.getElementById('loginCarregando').style.display='none';
+  const temNet = !!window.firebase;
+  document.getElementById('loginForm').style.display = temNet ? 'block':'none';
+  document.getElementById('loginOffline').style.display = temNet ? 'none':'block';
+}
+function loginErro(msg){ const e=document.getElementById('loginErro'); if(e){ e.textContent=msg; e.style.display=msg?'block':'none'; } }
+function _loginCreds(){
+  const em=document.getElementById('loginEmail').value.trim();
+  const sn=document.getElementById('loginSenha').value;
+  if(!em||!sn){ loginErro('Preencha e-mail e senha.'); return null; }
+  return {em,sn};
+}
+async function loginEntrar(){
+  const c=_loginCreds(); if(!c) return; loginErro('');
+  try{ await _auth.signInWithEmailAndPassword(c.em,c.sn); }
+  catch(e){ loginErro(traduzErroAuth(e)); }
+}
+async function loginCriar(){
+  const c=_loginCreds(); if(!c) return;
+  if(c.sn.length<6){ loginErro('A senha precisa de ao menos 6 caracteres.'); return; }
+  loginErro('');
+  try{ await _auth.createUserWithEmailAndPassword(c.em,c.sn); }
+  catch(e){ loginErro(traduzErroAuth(e)); }
+}
+async function loginRedefinir(){
+  const em=document.getElementById('loginEmail').value.trim();
+  if(!em){ loginErro('Digite seu e-mail no campo acima.'); return; }
+  try{ await _auth.sendPasswordResetEmail(em); loginErro(''); toast('E-mail de redefinição enviado para '+em, 5000); }
+  catch(e){ loginErro(traduzErroAuth(e)); }
 }
 
 // Ficha da conta (coleção contas/{uid}) — alimenta o painel do dono.
@@ -1708,12 +1786,15 @@ carregarManejos();
 carregarProps();
 renderHome();
 var _bl=document.getElementById('brandLogo'); if(_bl) _bl.innerHTML=ico('logo',26);
-if(_primeiraVez) abrirTelaArea();   // 1ª abertura: escolher Corte ou Reprodução
+var _ll=document.getElementById('loginLogo'); if(_ll) _ll.innerHTML=ico('logo',68);
+// A área só é escolhida DEPOIS do login (dentro de onAuthMudou).
 // Pede ao sistema para NÃO apagar o armazenamento deste app ("liberar espaço")
 try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
 // Recupera do cofre ANTES de mesclar com a nuvem (a nuvem espera o cofre)
 const _cofrePronto = recuperarDoCofre();
 iniciarNuvem();
+// Se o login não resolver rápido (ex.: sem internet), revela o formulário/aviso
+_loginTimeout = setTimeout(()=>{ if(!_uid) mostrarLoginGate(); }, 2500);
 // updateViaCache:'none' — iPhone/Safari sempre confere o sw.js novo na rede
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).catch(()=>{});
 </script>

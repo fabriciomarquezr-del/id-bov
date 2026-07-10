@@ -268,6 +268,23 @@ Proteções implementadas — NÃO REMOVER:
 - **Linha de status `#syncInfo`** na home: sem conta / aguardando internet /
   nuvem em dia.
 
+## Login obrigatório + isolamento por conta (v28)
+
+- Porta de login (`#telaLogin`, z-index 200) cobre tudo por padrão; app só
+  aparece após autenticar. `onAuthMudou`: com usuário → esconde a porta,
+  registra ficha, mescla, renderHome, e se não há área escolhida abre
+  `telaArea`. Sem usuário → `mostrarLoginGate()`. Boot mostra "Verificando
+  acesso…"; timeout de 2,5s revela o formulário (ou aviso offline se o SDK
+  não carregou). `setPersistence(LOCAL)` — sessão fica cacheada, então após
+  o 1º login o app abre e funciona OFFLINE no campo.
+- **Isolamento por conta** (`OWNER_KEY='idbov-owner-uid'`): se o aparelho tinha
+  dados de OUTRO uid, `limparDadosLocais()` apaga rebanho/manejos/props/
+  cofre antes de puxar a nuvem — cada cliente só vê o próprio rebanho, mesmo
+  em aparelho compartilhado. Usuário existente sem OWNER_KEY é "adotado" (não
+  limpa). Logout (`nuvemSair`) → onAuthMudou(null) → porta reaparece.
+- Funções: loginEntrar/loginCriar/loginRedefinir (reusam traduzErroAuth). O
+  botão ☁️ do header (modalNuvem) segue mostrando conta+sair quando logado.
+
 ## Comercialização: painel do dono + contas (v20)
 
 - **admin.html** (`/admin.html`, online-only, fora do fallback de cache do SW):
