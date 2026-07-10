@@ -41,6 +41,14 @@ lista de animais (com filtro por manejo), editar, excluir, exportar/importar.
 - Edição propaga p/ nuvem: na mesclagem o lado local vence nos campos
   simples (`Object.assign({}, nuvem, local)`).
 
+## Logo refeito: cabeça de boi de verdade (v25)
+
+- v24 lia como uma folha/garra abstrata (feedback do usuário: "isso se
+  parece com a cabeça de um bovino?"). Refeito com HEAD_PATH (cabeça
+  arredondada, formato escudo) + HORNS_PATH (2 chifres em crescente grosso
+  na base, afinando até a ponta) — agora lê claramente como cabeça de boi
+  mesmo em 14px. Testado em vários tamanhos antes de publicar.
+
 ## Logo de chifres + cartões de área sem ícone (v24)
 
 - Novo `ico('logo')`: marca do ID-Bov em chifres estilizados (fill

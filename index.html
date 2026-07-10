@@ -860,13 +860,14 @@ function renderManejos(){
 function escaparHTML(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // BOI (corpo inteiro, robusto) e VACA (corpo inteiro) — desenhos de linha
-const HORNS_PATH = 'M50 62 C44 62 39 58 38 52 C30 50 22 44 18 34 C15 26 16 17 22 10 C22 20 24 30 30 37 C33 41 37 44 41 45 C40 38 42 30 47 25 C48 33 49 42 50 48 C51 42 52 33 53 25 C58 30 60 38 59 45 C63 44 67 41 70 37 C76 30 78 20 78 10 C84 17 85 26 82 34 C78 44 70 50 62 52 C61 58 56 62 50 62 Z';
+const HORNS_PATH = 'M36 44 C23 42 8 33 4 16 C3 10 4 6 6 4 C9 7 13 16 20 25 C25 31 31 36 37 40 Z M64 44 C77 42 92 33 96 16 C97 10 96 6 94 4 C91 7 87 16 80 25 C75 31 69 36 63 40 Z';
+const HEAD_PATH = 'M50 40 C36 40 27 48 27 59 C27 76 37 89 50 91 C63 89 73 76 73 59 C73 48 64 40 50 40 Z';
 const OX_PATHS = '<path d="M18 44 C14 32 18 22 30 23 C40 24 44 27 52 25 C55 14 64 13 68 24 C72 19 82 20 87 25 C91 28 93 33 95 37"/><path d="M95 37 C98 40 99 44 97 48 C95 52 88 53 84 50 C82 48 80 47 78 47"/><path d="M78 47 C74 51 72 57 72 61"/><path d="M72 61 C60 65 46 65 36 62 C30 60 26 53 27 46"/><path d="M70 61 L69 80 M78 60 L79 80"/><path d="M31 62 L30 80 M41 62 L42 80"/><path d="M18 44 C12 50 12 60 16 67"/><path d="M87 24 C87 15 84 9 88 5 M93 28 C99 22 103 16 102 9"/><path d="M83 27 C86 22 92 22 94 27"/><circle cx="89" cy="34" r="1.6" fill="currentColor" stroke="none"/>';
 const COW_PATHS = '<path d="M18 42 C15 33 19 26 30 27 C46 28 60 27 72 27 C78 23 85 24 89 29 C92 31 94 35 96 38"/><path d="M96 38 C99 41 100 45 98 49 C96 53 89 54 85 51 C83 49 81 48 79 48"/><path d="M79 48 C75 52 73 58 73 62"/><path d="M73 62 C62 65 40 65 34 62 C29 60 26 54 27 47"/><path d="M52 64 C52 69 57 70 59 66"/><path d="M71 62 L70 82 M79 61 L80 82"/><path d="M31 62 L30 82 M42 62 L43 82"/><path d="M18 42 C12 49 13 62 18 70"/><path d="M85 28 C86 23 86 20 83 18 M90 30 C93 26 94 23 94 19"/><path d="M80 30 C83 26 88 26 90 30"/><circle cx="86" cy="35" r="1.6" fill="currentColor" stroke="none"/>';
 
 // Ícones minimalistas (linha fina, herdam a cor do texto via currentColor)
 function ico(n, t=16){
-  if(n==='logo') return `<svg height="${t}" viewBox="8 4 84 62" fill="currentColor" style="vertical-align:-3px;flex:none"><path d="${HORNS_PATH}"/></svg>`;
+  if(n==='logo') return `<svg height="${t}" viewBox="0 -2 100 94" fill="currentColor" style="vertical-align:-3px;flex:none"><path d="${HORNS_PATH}"/><path d="${HEAD_PATH}"/></svg>`;
   if(n==='bull') return `<svg height="${t}" viewBox="6 8 100 78" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex:none">${OX_PATHS}</svg>`;
   if(n==='cow')  return `<svg height="${t}" viewBox="6 8 100 80" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex:none">${COW_PATHS}</svg>`;
   const d={
