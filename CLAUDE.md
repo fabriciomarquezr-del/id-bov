@@ -291,6 +291,17 @@ Proteções implementadas — NÃO REMOVER:
   clipboard), "Exportar animais filtrados (Excel)" (SheetJS, só os filtrados),
   "Mudar filtros". `_relAnimaisCache` guarda o conjunto do último relatório.
 
+## Cadastro com dados do cliente (v34)
+
+- "Criar conta nova" abre form `#loginCadastro` com: Primeiro nome, Último
+  nome, WhatsApp (com DDD), E-mail (login) e Senha (com olho). `loginCriar()`
+  valida os campos, guarda em `_dadosCadastro` e cria a conta; `registrarConta()`
+  grava nome/sobrenome/telefone no doc `contas/{uid}` (não muda as regras —
+  create só exige bloqueada==false + uid). `alternarVerSenha(inpId,btnId)`
+  generalizado; `mostrarCadastro()`/`voltarLogin()` alternam os forms.
+- admin.html mostra nome completo, e-mail e WhatsApp (link wa.me clicável) em
+  cada ficha de conta — para o dono contatar clientes.
+
 ## Login obrigatório + isolamento por conta (v28)
 
 - Porta de login (`#telaLogin`, z-index 200) cobre tudo por padrão; app só

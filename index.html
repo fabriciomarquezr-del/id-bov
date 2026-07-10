@@ -227,8 +227,24 @@
         <button type="button" id="loginVerSenha" onclick="alternarVerSenha()" aria-label="Mostrar senha" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:8px;color:var(--text-3);display:flex" title="Mostrar/ocultar senha"></button>
       </div>
       <button class="btn-grande" style="font-size:1.05rem;padding:16px;margin-bottom:9px" onclick="loginEntrar()">Entrar</button>
-      <button class="btn-claro" style="margin-top:0" onclick="loginCriar()">Criar conta nova</button>
+      <button class="btn-claro" style="margin-top:0" onclick="mostrarCadastro()">Criar conta nova</button>
       <button class="btn-claro" style="margin-top:9px;border:none;background:transparent;color:var(--text-2)" onclick="loginRedefinir()">Esqueci a senha</button>
+    </div>
+    <div id="loginCadastro" style="display:none;background:#fff;border-radius:18px;padding:20px;text-align:left;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+      <div style="font-weight:800;color:var(--green-deep);font-size:1.05rem;margin-bottom:14px">Criar sua conta</div>
+      <div id="cadErro" style="display:none;background:var(--red-light);color:var(--red);border-radius:10px;padding:9px 12px;font-size:0.8rem;font-weight:700;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <input id="cadNome" type="text" placeholder="Primeiro nome" autocomplete="given-name" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);margin-bottom:10px;outline:none;font-family:inherit;font-size:16px">
+        <input id="cadSobrenome" type="text" placeholder="Último nome" autocomplete="family-name" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);margin-bottom:10px;outline:none;font-family:inherit;font-size:16px">
+      </div>
+      <input id="cadWhats" type="tel" placeholder="WhatsApp (com DDD)" autocomplete="tel" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);margin-bottom:10px;outline:none;font-family:inherit;font-size:16px">
+      <input id="cadEmail" type="email" placeholder="E-mail (será seu login)" autocomplete="email" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);margin-bottom:10px;outline:none;font-family:inherit;font-size:16px">
+      <div style="position:relative;margin-bottom:12px">
+        <input id="cadSenha" type="password" placeholder="Senha (mín. 6)" autocomplete="new-password" style="width:100%;padding:13px 46px 13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);outline:none;font-family:inherit;font-size:16px">
+        <button type="button" id="cadVerSenha" onclick="alternarVerSenha('cadSenha','cadVerSenha')" aria-label="Mostrar senha" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:8px;color:var(--text-3);display:flex" title="Mostrar/ocultar senha"></button>
+      </div>
+      <button class="btn-grande" style="font-size:1.05rem;padding:16px;margin-bottom:9px" onclick="loginCriar()">Criar conta</button>
+      <button class="btn-claro" style="margin-top:0;border:none;background:transparent;color:var(--text-2)" onclick="voltarLogin()">← Já tenho conta</button>
     </div>
     <div id="loginOffline" style="display:none;color:rgba(255,255,255,.82);font-size:0.9rem;line-height:1.55;padding:18px">Sem internet agora. O primeiro acesso precisa de conexão — conecte-se e abra o app de novo. Depois de entrar uma vez, o app funciona offline no campo.</div>
   </div>
@@ -1736,6 +1752,7 @@ let _nuvemOk=false;      // trava: só grava na nuvem depois de ler o estado del
 let _nuvemCount=0;       // quantos animais a nuvem tinha na última leitura (trava anti-perda)
 let _syncTimer=null, _pendente=false, _erroMostrado=false;
 let _loginTimeout=null;
+let _dadosCadastro=null;   // nome/sobrenome/telefone digitados no cadastro
 
 function carregarExcluidos(){ try{ excluidos = JSON.parse(localStorage.getItem(EXC_KEY)) || []; }catch(e){ excluidos=[]; } }
 function salvarExcluidos(){ try{ localStorage.setItem(EXC_KEY, JSON.stringify(excluidos.slice(-500))); }catch(e){} }
@@ -1796,6 +1813,7 @@ function mostrarLoginGate(){
   document.getElementById('loginCarregando').style.display='none';
   const temNet = !!window.firebase;
   document.getElementById('loginForm').style.display = temNet ? 'block':'none';
+  document.getElementById('loginCadastro').style.display = 'none';
   document.getElementById('loginOffline').style.display = temNet ? 'none':'block';
 }
 function loginErro(msg){ const e=document.getElementById('loginErro'); if(e){ e.textContent=msg; e.style.display=msg?'block':'none'; } }
@@ -1805,17 +1823,37 @@ function _loginCreds(){
   if(!em||!sn){ loginErro('Preencha e-mail e senha.'); return null; }
   return {em,sn};
 }
+function mostrarCadastro(){
+  document.getElementById('loginForm').style.display='none';
+  document.getElementById('loginCadastro').style.display='block';
+  cadErro('');
+  const vs=document.getElementById('cadVerSenha'); if(vs) vs.innerHTML=_icoOlho(false);
+}
+function voltarLogin(){
+  document.getElementById('loginCadastro').style.display='none';
+  document.getElementById('loginForm').style.display='block';
+}
+function cadErro(msg){ const e=document.getElementById('cadErro'); if(e){ e.textContent=msg; e.style.display=msg?'block':'none'; } }
+
 async function loginEntrar(){
   const c=_loginCreds(); if(!c) return; loginErro('');
   try{ await _auth.signInWithEmailAndPassword(c.em,c.sn); }
   catch(e){ loginErro(traduzErroAuth(e)); }
 }
 async function loginCriar(){
-  const c=_loginCreds(); if(!c) return;
-  if(c.sn.length<6){ loginErro('A senha precisa de ao menos 6 caracteres.'); return; }
-  loginErro('');
-  try{ await _auth.createUserWithEmailAndPassword(c.em,c.sn); }
-  catch(e){ loginErro(traduzErroAuth(e)); }
+  const nome=document.getElementById('cadNome').value.trim();
+  const sobre=document.getElementById('cadSobrenome').value.trim();
+  const whats=document.getElementById('cadWhats').value.trim();
+  const em=document.getElementById('cadEmail').value.trim();
+  const sn=document.getElementById('cadSenha').value;
+  if(!nome||!sobre){ cadErro('Preencha primeiro e último nome.'); return; }
+  if(!whats){ cadErro('Informe seu WhatsApp (com DDD).'); return; }
+  if(!em||!sn){ cadErro('Preencha e-mail e senha.'); return; }
+  if(sn.length<6){ cadErro('A senha precisa de ao menos 6 caracteres.'); return; }
+  cadErro('');
+  _dadosCadastro={ nome, sobrenome:sobre, telefone:whats };
+  try{ await _auth.createUserWithEmailAndPassword(em,sn); }
+  catch(e){ _dadosCadastro=null; cadErro(traduzErroAuth(e)); }
 }
 // Olho: mostrar/ocultar a senha no login
 function _icoOlho(aberto){
@@ -1823,9 +1861,9 @@ function _icoOlho(aberto){
     ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>'
     : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.9 17.9A10.5 10.5 0 0 1 12 19c-6.5 0-10-7-10-7a18 18 0 0 1 5.1-5.9M9.9 4.2A10.5 10.5 0 0 1 12 4c6.5 0 10 7 10 7a18 18 0 0 1-2.3 3.3M9.5 9.5a3 3 0 0 0 4.2 4.2"/><path d="M2 2l20 20"/></svg>';
 }
-function alternarVerSenha(){
-  const inp=document.getElementById('loginSenha');
-  const btn=document.getElementById('loginVerSenha');
+function alternarVerSenha(inpId, btnId){
+  const inp=document.getElementById(inpId||'loginSenha');
+  const btn=document.getElementById(btnId||'loginVerSenha');
   const ver = inp.type==='password';
   inp.type = ver ? 'text' : 'password';
   btn.innerHTML = _icoOlho(ver);
@@ -1845,12 +1883,15 @@ async function registrarConta(){
     const ref=_db.collection('contas').doc(_uid);
     const doc=await ref.get();
     if(!doc.exists){
+      const x=_dadosCadastro||{};
       await ref.set({
         email:_email,
+        nome:x.nome||'', sobrenome:x.sobrenome||'', telefone:x.telefone||'',
         criadaEm: firebase.firestore.FieldValue.serverTimestamp(),
         ultimoAcesso: firebase.firestore.FieldValue.serverTimestamp(),
         bloqueada:false
       });
+      _dadosCadastro=null;
       return true;
     }
     if(doc.data().bloqueada===true){
@@ -2058,6 +2099,7 @@ renderHome();
 var _bl=document.getElementById('brandLogo'); if(_bl) _bl.innerHTML=ico('logo',26);
 var _ll=document.getElementById('loginLogo'); if(_ll) _ll.innerHTML=ico('logo',68);
 var _vs=document.getElementById('loginVerSenha'); if(_vs) _vs.innerHTML=_icoOlho(false);
+var _vc=document.getElementById('cadVerSenha'); if(_vc) _vc.innerHTML=_icoOlho(false);
 // A área só é escolhida DEPOIS do login (dentro de onAuthMudou).
 // Pede ao sistema para NÃO apagar o armazenamento deste app ("liberar espaço")
 try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
