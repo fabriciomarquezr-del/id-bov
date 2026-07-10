@@ -50,13 +50,27 @@
     /* ── Cabeçalho ── */
     header{
       background:var(--green-deep);color:#fff;
-      display:flex;align-items:center;gap:12px;
+      display:flex;align-items:center;gap:8px;
       padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
       position:sticky;top:0;z-index:5;
     }
-    header h1{font-size:1.1rem;font-weight:800;letter-spacing:-0.2px;flex:1;display:flex;align-items:center;gap:9px}
+    header h1{font-size:1.1rem;font-weight:800;letter-spacing:-0.2px;flex:1;min-width:0;display:flex;align-items:center;gap:9px;white-space:nowrap}
+    .btn-header,#btnArea,header .badge{flex:none}
+    /* Celulares estreitos (iPhone SE): aperta o cabeçalho p/ o nome caber inteiro */
+    @media (max-width:400px){
+      header{gap:4px;padding-left:11px;padding-right:11px}
+      header h1{font-size:1.02rem;gap:6px}
+      .btn-header{padding:7px 8px}
+      #btnSync{padding:7px 7px}
+      #btnArea{padding:7px 6px;font-size:0.6rem}
+      header .badge{font-size:0.56rem;padding:3px 6px}
+    }
     header .badge{background:var(--gold);color:#23170A;font-family:'Space Mono',monospace;font-size:0.65rem;padding:4px 10px;border-radius:20px;font-weight:700}
     .btn-header{background:rgba(255,255,255,.14);border:none;color:#fff;border-radius:10px;padding:8px 13px;font-weight:800;cursor:pointer;font-size:0.9rem;font-family:inherit}
+    #btnSync{padding:8px 11px}
+    #btnSync:disabled{opacity:.55}
+    @keyframes girando{to{transform:rotate(360deg)}}
+    #syncIcone.girando{animation:girando .8s linear infinite;transform-origin:50% 50%}
 
     /* ── Telas ── */
     .tela{display:none;max-width:560px;margin:0 auto;padding:18px 16px calc(40px + env(safe-area-inset-bottom))}
@@ -256,6 +270,9 @@
     ID-Bov
   </h1>
   <button id="btnArea" onclick="abrirTelaArea()" title="Trocar de área">CORTE</button>
+  <button class="btn-header" id="btnSync" onclick="sincronizarAgora()" title="Enviar dados para a nuvem agora">
+    <svg id="syncIcone" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+  </button>
   <button class="btn-header" id="btnNuvem" onclick="abrirNuvem()" title="Minha conta">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.6A4 4 0 0 0 6.5 18z"/></svg>
     <span id="nuvemDot"></span>
@@ -976,7 +993,8 @@ function ico(n, t=16){
     fone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.1 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7 12.8 12.8 0 0 0 .7 2.8 2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4 12.8 12.8 0 0 0 2.8.7 2 2 0 0 1 1.7 2z"/>',
     nota:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/>',
     boi:'<path d="M4.5 6c0 2 1.4 3.1 3 3.1M19.5 6c0 2-1.4 3.1-3 3.1"/><ellipse cx="12" cy="13.5" rx="5.2" ry="4.6"/><path d="M10 16.8c.55.5 1.2.7 2 .7s1.45-.2 2-.7"/><circle cx="10.2" cy="12.4" r=".45" fill="currentColor"/><circle cx="13.8" cy="12.4" r=".45" fill="currentColor"/>',
-    nuvem:'<path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.6A4 4 0 0 0 6.5 18z"/>'
+    nuvem:'<path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.6A4 4 0 0 0 6.5 18z"/>',
+    sync:'<path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>'
   }[n]||'';
   return `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex:none">${d}</svg>`;
 }
@@ -1994,13 +2012,13 @@ function agendarSync(){
 }
 
 async function empurrarNuvem(){
-  if(!_db || !_uid || !_nuvemOk) return;
+  if(!_db || !_uid || !_nuvemOk) return false;
   // TRAVA ANTI-PERDA: nunca envia um rebanho menor do que a nuvem tinha,
   // a menos que a diferença seja explicada por exclusões feitas de propósito.
   if(rebanho.length + excluidos.length < _nuvemCount){
     console.warn('trava anti-perda: envio bloqueado', rebanho.length, excluidos.length, _nuvemCount);
     toast('Proteção: envio à nuvem bloqueado para não apagar dados. Feche e abra o app; se repetir, me avise.', 7000);
-    return;
+    return false;
   }
   try{
     await docNuvem().set({
@@ -2015,8 +2033,41 @@ async function empurrarNuvem(){
     });
     _pendente=false; _erroMostrado=false;
     _nuvemCount = rebanho.length;
-  }catch(e){ _pendente=true; tratarErroNuvem(e); }
-  atualizarDotNuvem();
+    atualizarDotNuvem();
+    return true;
+  }catch(e){ _pendente=true; tratarErroNuvem(e); atualizarDotNuvem(); return false; }
+}
+
+// Botão de sincronizar no cabeçalho: força o envio agora, com resposta na tela.
+let _sincronizando=false;
+async function sincronizarAgora(){
+  if(_sincronizando) return;
+  if(!_uid){ abrirNuvem(); return; }   // sem conta: leva o usuário a entrar/criar
+  if(!navigator.onLine){ toast('Sem internet agora — tudo salvo no aparelho, envio sozinho quando a conexão voltar', 5000); return; }
+
+  _sincronizando=true;
+  const ico=document.getElementById('syncIcone');
+  const btn=document.getElementById('btnSync');
+  if(ico) ico.classList.add('girando');
+  if(btn) btn.disabled=true;
+  const t0=Date.now();
+  let ok=false;
+  try{
+    if(!_nuvemOk) await puxarEMesclar();   // garante que leu a nuvem antes de gravar (destrava _nuvemOk)
+    _erroMostrado=true;                     // evita toast duplicado de erro; damos a nossa mensagem
+    ok = await empurrarNuvem();
+    _erroMostrado=false;
+  }catch(e){ console.error('sincronizarAgora:', e); ok=false; }
+
+  // Deixa o giro visível pelo menos meio segundo (senão parece que nada aconteceu)
+  const resta = 500 - (Date.now()-t0);
+  if(resta>0) await new Promise(r=>setTimeout(r, resta));
+
+  _sincronizando=false;
+  if(ico) ico.classList.remove('girando');
+  if(btn) btn.disabled=false;
+  if(ok) toast('✓ Dados enviados para a nuvem', 3000);
+  else if(_pendente) toast('Não consegui enviar agora — tentarei de novo sozinho', 5000);
 }
 
 function tratarErroNuvem(e){
