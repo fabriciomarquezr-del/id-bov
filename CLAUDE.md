@@ -268,6 +268,16 @@ Proteções implementadas — NÃO REMOVER:
 - **Linha de status `#syncInfo`** na home: sem conta / aguardando internet /
   nuvem em dia.
 
+## Campo Prenhez (v33)
+
+- Reprodução ganhou o campo **Prenhez** (`a.prenhez`: 'Cheia' | 'Vazia';
+  vazio se pulado), espelhando exatamente o padrão do `categoria`:
+  const `PRENHEZES=['Cheia','Vazia']`, passo do assistente entre Categoria e
+  Idade ("A vaca está cheia ou vazia?"), toggle no painel do manejo, pílulas
+  na edição, cartão, Excel (coluna Prenhez + POR PRENHEZ no resumo), CSV,
+  importação (normaliza ch*/va*), nuvem/cofre e relatórios (filtro + seção de
+  distribuição). `camposDefDaArea()` esconde categoria E prenhez no Corte.
+
 ## Relatórios (v30)
 
 - Botão "Relatórios" na home (painelAnimais) abre `#telaRelatorio` (tela cheia).
