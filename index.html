@@ -433,6 +433,24 @@
   </div>
 </div>
 
+<!-- ══ MODAL: TOUROS DO MANEJO (pré-cadastro dos nomes) ══ -->
+<div class="overlay" id="modalTouros" onclick="if(event.target===this)fecharTouros()">
+  <div class="caixa" style="max-height:88vh;overflow-y:auto">
+    <h3>Touros do manejo</h3>
+    <div style="font-size:0.8rem;color:var(--text-2);line-height:1.45;margin-bottom:12px">Cadastre aqui os touros/sêmen usados neste manejo. No cadastro do animal eles viram botões — é só tocar para selecionar.</div>
+    <div class="ed-label">Adicionar touro</div>
+    <div style="display:flex;gap:8px">
+      <input id="touroNovoInput" type="text" placeholder="Ex.: Belgrado" onkeydown="if(event.key==='Enter')salvarTouroNovo()"
+        style="flex:1;min-width:0;border:2px solid var(--border);border-radius:12px;padding:12px;font-family:inherit;font-size:16px;font-weight:700;outline:none;background:#fff;color:var(--text)">
+      <button onclick="salvarTouroNovo()" style="flex:none;border:none;background:var(--green);color:#fff;font-weight:800;border-radius:12px;padding:0 16px;cursor:pointer;font-family:inherit;font-size:1rem">+</button>
+    </div>
+    <div id="tourosSugestoes"></div>
+    <div class="ed-label">Neste manejo</div>
+    <div id="tourosLista"></div>
+    <button class="btn-nuvem-acao" style="margin-top:16px" onclick="fecharTouros()">✔ Concluir</button>
+  </div>
+</div>
+
 <!-- ══ MODAL: PESAGENS DO ANIMAL ══ -->
 <div class="overlay" id="modalPesagem" onclick="if(event.target===this)fecharPesagem()">
   <div class="caixa">
@@ -458,6 +476,7 @@
 const DB_KEY = 'idbov-rebanho-v1';
 let rebanho = [];   // { id, brinco, sexo, raca, idade, obs, data }
 let w = null;       // estado do cadastro em andamento
+let _ultData = {d0:'', d8:'', d10:''};   // última data usada em cada etapa (repete no próximo animal do lote)
 
 const IDADES = [
   {v:'0-4',   l:'0 a 4 meses'},
@@ -752,17 +771,87 @@ function garantirManejoAtual(){
 // Campos que um manejo pode preencher (brinco é tratado à parte).
 // "categoria" (Primípara/Multípara/Vaca) existe SÓ na área de Reprodução.
 const CATEGORIAS=['Primípara','Multípara','Vaca'];
-const PRENHEZES=['Cheia','Vazia'];   // prenhez: só na área de Reprodução
+const PRENHEZES=['Cheia','Vazia'];   // prenhez (DG): só na área de Reprodução
 const CAMPOS_DEF=[
   {v:'sexo',     l:'Sexo (macho/fêmea)'},
   {v:'raca',     l:'Raça'},
   {v:'categoria',l:'Categoria (primípara/multípara/vaca)'},
-  {v:'prenhez',l:'Prenhez (cheia/vazia)'},
+  {v:'d0',       l:'D0 (data da 1ª etapa)'},
+  {v:'d8',       l:'D8 (data da 2ª etapa)'},
+  {v:'d10',      l:'D10 (data da inseminação)'},
+  {v:'touro',    l:'Touro (sêmen usado)'},
+  {v:'prenhez',l:'Prenhez / DG (cheia/vazia)'},
   {v:'idade',    l:'Idade (faixa de meses)'},
   {v:'peso',     l:'Peso (kg)'},
   {v:'obs',      l:'Observação'}
 ];
-function camposDefDaArea(a){ return a==='reproducao' ? CAMPOS_DEF : CAMPOS_DEF.filter(c=>c.v!=='categoria' && c.v!=='prenhez'); }
+// Campos que só existem na área de Reprodução (protocolo IATF + matriz)
+const CAMPOS_REPRO=['categoria','d0','d8','d10','touro','prenhez'];
+function camposDefDaArea(a){ return a==='reproducao' ? CAMPOS_DEF : CAMPOS_DEF.filter(c=>!CAMPOS_REPRO.includes(c.v)); }
+
+// ── Touros: cada manejo guarda a lista de touros/sêmen usados nele ──
+// O usuário pré-cadastra os nomes; no cadastro do animal eles viram botões.
+function tourosDoManejo(id){ const m=manejos.find(x=>x.id===id); return (m && Array.isArray(m.touros)) ? m.touros : []; }
+function addTouro(id, nome){
+  nome=(nome||'').trim(); if(!nome) return false;
+  const m=manejos.find(x=>x.id===id); if(!m) return false;
+  if(!Array.isArray(m.touros)) m.touros=[];
+  if(m.touros.some(t=>t.toLowerCase()===nome.toLowerCase())) return false;
+  m.touros.push(nome); salvarManejos(); salvar(); return true;
+}
+function removeTouro(id, nome){
+  const m=manejos.find(x=>x.id===id); if(!m || !Array.isArray(m.touros)) return;
+  m.touros=m.touros.filter(t=>t!==nome); salvarManejos(); salvar();
+}
+// Touros já usados em qualquer manejo/animal — para sugerir ao adicionar
+function todosTouros(){ const s=new Set(); manejos.forEach(m=>(m.touros||[]).forEach(t=>s.add(t))); rebanho.forEach(a=>{ if(a.touro) s.add(a.touro); }); return [...s].sort((x,y)=>x.localeCompare(y)); }
+
+// ── Modal de gerenciar touros do manejo ──
+let _tourosManejoId=null;
+function abrirTouros(id){
+  _tourosManejoId = id || manejoAtualId;
+  if(!_tourosManejoId){ toast('Crie um manejo antes de cadastrar os touros'); return; }
+  document.getElementById('touroNovoInput').value='';
+  renderTouros();
+  document.getElementById('modalTouros').classList.add('visivel');
+  setTimeout(()=>{ const i=document.getElementById('touroNovoInput'); if(i) i.focus(); }, 60);
+}
+function fecharTouros(){
+  document.getElementById('modalTouros').classList.remove('visivel');
+  _tourosManejoId=null;
+  if(w) renderPasso();          // volta ao wizard com a lista atualizada
+  if(_editId!=null) abrirEditar(_editId);   // ou reabre a edição com a lista nova
+  if(document.getElementById('modalManejoCfg').classList.contains('visivel')) renderCfgCampos();
+}
+function renderTouros(){
+  const lista=tourosDoManejo(_tourosManejoId);
+  document.getElementById('tourosLista').innerHTML = lista.length
+    ? lista.map(t=>`<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:10px 12px;margin-bottom:7px">
+        <span style="flex:1;min-width:0;font-weight:700;color:var(--green-deep)">${escaparHTML(t)}</span>
+        <button onclick="excluirTouro(${JSON.stringify(t).replace(/"/g,'&quot;')})" title="Remover" style="flex:none;border:none;background:var(--red-light);color:var(--red);font-weight:800;border-radius:8px;padding:6px 11px;cursor:pointer;font-family:inherit">✕</button>
+      </div>`).join('')
+    : '<div style="color:var(--text-3);font-size:0.85rem;padding:4px 0 10px">Nenhum touro cadastrado ainda.</div>';
+  // Sugestões: touros já usados em outros manejos que ainda não estão neste
+  const jaTem=new Set(lista.map(t=>t.toLowerCase()));
+  const sug=todosTouros().filter(t=>!jaTem.has(t.toLowerCase()));
+  document.getElementById('tourosSugestoes').innerHTML = sug.length
+    ? `<div style="font-size:0.72rem;color:var(--text-3);margin:10px 0 6px">Usados antes — toque para reaproveitar:</div>
+       <div style="display:flex;flex-wrap:wrap;gap:6px">${sug.map(t=>`<button onclick="reusarTouro(${JSON.stringify(t).replace(/"/g,'&quot;')})" style="border:1px solid rgba(27,122,61,.4);background:var(--green-light);color:var(--green-2);font-weight:700;font-size:0.82rem;border-radius:999px;padding:6px 12px;cursor:pointer;font-family:inherit">+ ${escaparHTML(t)}</button>`).join('')}</div>`
+    : '';
+}
+function salvarTouroNovo(){
+  const inp=document.getElementById('touroNovoInput');
+  const nome=inp.value.trim();
+  if(!nome){ inp.focus(); return; }
+  if(addTouro(_tourosManejoId, nome)){ inp.value=''; renderTouros(); inp.focus(); }
+  else { toast('Este touro já está na lista'); inp.value=''; }
+}
+function reusarTouro(nome){ if(addTouro(_tourosManejoId, nome)) renderTouros(); }
+function excluirTouro(nome){ removeTouro(_tourosManejoId, nome); renderTouros(); }
+
+// ── Datas das etapas (D0/D8/D10): guardadas como 'AAAA-MM-DD' (valor nativo) ──
+function hojeISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtDataBR(iso){ if(!iso) return ''; const p=String(iso).split('-'); return p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : String(iso); }
 function camposTodosDaArea(a){ return camposDefDaArea(a).map(c=>c.v); }
 function camposDoManejo(m){ return (m && Array.isArray(m.campos)) ? m.campos : camposTodosDaArea(areaDe(m)); }
 function rotuloCampo(v){ const c=CAMPOS_DEF.find(x=>x.v===v); return c?c.l.split(' (')[0]:v; }
@@ -787,7 +876,12 @@ function renderCfgCampos(){
     </button>` + camposDefDaArea(_cfgArea).map(c=>`
     <button class="cfg-campo${_cfgCampos.includes(c.v)?' sel':''}" onclick="cfgToggle('${c.v}')">
       <span>${c.l}</span><span class="estado">${_cfgCampos.includes(c.v)?'✓ Vai preencher':'○ Pular'}</span>
-    </button>`).join('');
+    </button>`).join('')
+    // Reprodução + manejo já criado: pré-cadastrar os touros deste manejo
+    + ((_cfgArea==='reproducao' && _cfgId && _cfgCampos.includes('touro')) ? `
+    <button class="cfg-campo" onclick="abrirTouros(${_cfgId})" style="border-color:rgba(27,122,61,.4);background:var(--green-light)">
+      <span style="color:var(--green-2);font-weight:800">Touros deste manejo (${tourosDoManejo(_cfgId).length})</span><span class="estado" style="color:var(--green-2)">Cadastrar ›</span>
+    </button>` : '');
 }
 function cfgToggleBrinco(){ _cfgBrinco=!_cfgBrinco; renderCfgCampos(); }
 function cfgToggle(v){
@@ -919,6 +1013,7 @@ function renderHome(){
       <div style="flex:1;min-width:0">
         <div class="mono" style="font-weight:700;font-size:1.2rem;color:${a.brinco?'var(--green-deep)':'var(--text-3)'}">${a.brinco||'— s/ brinco'}</div>
         <div style="font-size:0.78rem;color:var(--text-2);font-weight:600">${[labelSexo(a.sexo), a.raca, a.categoria||'', a.prenhez||'', labelIdade(a.idade), a.peso?`${a.peso} kg`:''].filter(Boolean).join(' · ') || '—'}</div>
+        ${areaDe(a)==='reproducao' && (a.d0||a.d8||a.d10||a.touro)?`<div style="font-size:0.72rem;color:var(--text-2);margin-top:2px;font-weight:600">${[a.d0?`D0 ${fmtDataBR(a.d0)}`:'', a.d8?`D8 ${fmtDataBR(a.d8)}`:'', a.d10?`D10 ${fmtDataBR(a.d10)}`:'', a.touro?`Touro: ${escaparHTML(a.touro)}`:''].filter(Boolean).join(' · ')}</div>`:''}
         ${filtroManejoId===null && a.manejoId && nomeManejo(a.manejoId)?`<div style="font-size:0.72rem;color:var(--text-3);margin-top:2px">${ico('prancheta',11)} ${escaparHTML(nomeManejo(a.manejoId))}</div>`:''}
         ${a.obs?`<div style="font-size:0.76rem;color:var(--text-3);margin-top:2px">${ico('nota',11)} ${escaparHTML(a.obs)}</div>`:''}
       </div>
@@ -1011,9 +1106,16 @@ function excluir(id){
 }
 
 function exportarCSV(){
-  const linhas=[['Area','Propriedade','Brinco','Sexo','Raca','Categoria','Prenhez','Idade','Peso (kg)','Manejo','Observacao','Data']];
+  const repro = area==='reproducao';
+  const cab=['Area','Propriedade','Brinco','Sexo','Raca'];
+  if(repro) cab.push('Categoria','D0','D8','D10','Touro','Prenhez (DG)');
+  cab.push('Idade','Peso (kg)','Manejo','Observacao','Data');
+  const linhas=[cab];
   [...animaisDaArea()].sort((a,b)=>a.data-b.data).forEach(a=>{
-    linhas.push([area==='corte'?'Corte':'Reproducao', nomeProp(a.propId)||'Geral', a.brinco, labelSexo(a.sexo), a.raca, a.categoria||'', a.prenhez||'', labelIdade(a.idade), a.peso||'', nomeManejo(a.manejoId)||'', (a.obs||'').replace(/[\r\n]+/g,' '), new Date(a.data).toLocaleString('pt-BR')]);
+    const l=[area==='corte'?'Corte':'Reproducao', nomeProp(a.propId)||'Geral', a.brinco, labelSexo(a.sexo), a.raca];
+    if(repro) l.push(a.categoria||'', fmtDataBR(a.d0), fmtDataBR(a.d8), fmtDataBR(a.d10), a.touro||'', a.prenhez||'');
+    l.push(labelIdade(a.idade), a.peso||'', nomeManejo(a.manejoId)||'', (a.obs||'').replace(/[\r\n]+/g,' '), new Date(a.data).toLocaleString('pt-BR'));
+    linhas.push(l);
   });
   const csv='﻿'+linhas.map(l=>l.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
@@ -1045,7 +1147,14 @@ function exportarExcel(){
     'Brinco':           a.brinco,
     'Sexo':             labelSexo(a.sexo),
     'Raça':             a.raca};
-    if(area==='reproducao'){ o['Categoria']=a.categoria||''; o['Prenhez']=a.prenhez||''; }
+    if(area==='reproducao'){
+      o['Categoria']=a.categoria||'';
+      o['D0 (1ª etapa)']=fmtDataBR(a.d0);
+      o['D8 (2ª etapa)']=fmtDataBR(a.d8);
+      o['D10 (inseminação)']=fmtDataBR(a.d10);
+      o['Touro (sêmen)']=a.touro||'';
+      o['Prenhez (DG)']=a.prenhez||'';
+    }
     return Object.assign(o,{
     'Idade (categoria)':labelIdade(a.idade),
     'Peso atual (kg)':  a.peso || '',
@@ -1120,6 +1229,11 @@ function parseDataPlanilha(v){
   if(m) return new Date(+m[3], +m[2]-1, +m[1], +(m[4]||12), +(m[5]||0), +(m[6]||0)).getTime();
   const d=new Date(v); return isNaN(d)?null:d.getTime();
 }
+// Converte uma célula de data (BR, ISO ou serial do Excel) em 'AAAA-MM-DD' — formato das etapas
+function parseDataISO(v){
+  const ms=parseDataPlanilha(v); if(ms==null) return '';
+  const d=new Date(ms); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 async function importarPlanilha(files){
   const f = files && files[0]; if(!f) return;
   document.getElementById('importInput').value='';
@@ -1174,11 +1288,18 @@ async function importarPlanilha(files){
       const idade = idadeObj ? idadeObj.v : '';
       const catTxt = String(l['Categoria'] ?? '').trim().toLowerCase();
       const categoria = catTxt.startsWith('prim') ? 'Primípara' : (catTxt.startsWith('mult') ? 'Multípara' : (catTxt.startsWith('vaca') ? 'Vaca' : ''));
-      const preTxt = String(l['Prenhez'] ?? '').trim().toLowerCase();
+      const preTxt = String(l['Prenhez (DG)'] ?? l['Prenhez'] ?? '').trim().toLowerCase();
       const prenhez = preTxt.startsWith('ch') ? 'Cheia' : (preTxt.startsWith('va') ? 'Vazia' : '');
+      const d0 = parseDataISO(l['D0 (1ª etapa)'] ?? l['D0'] ?? '');
+      const d8 = parseDataISO(l['D8 (2ª etapa)'] ?? l['D8'] ?? '');
+      const d10 = parseDataISO(l['D10 (inseminação)'] ?? l['D10'] ?? '');
+      const touro = String(l['Touro (sêmen)'] ?? l['Touro'] ?? '').trim();
+      // Touro importado entra na lista do manejo (para virar botão nos próximos cadastros)
+      if(touro && manejoId) addTouro(manejoId, touro);
       const peso = parseInt(l['Peso atual (kg)'] ?? l['Peso (kg)'] ?? '', 10) || null;
       rebanho.push({
-        id: base+i, area: areaLinha, propId: propLinha, brinco, sexo, raca, categoria, prenhez, idade, peso,
+        id: base+i, area: areaLinha, propId: propLinha, brinco, sexo, raca, categoria, prenhez,
+        d0, d8, d10, touro, idade, peso,
         pesagens: peso ? [{peso, data}] : [],
         manejoId,
         obs: String(l['Observação'] ?? l['Observacao'] ?? '').trim(),
@@ -1392,7 +1513,7 @@ function exportarRelatorioExcel(){
   const rotArea=area==='corte'?'Corte':'Reprodução';
   const linhas=animais.map(a=>{
     const o={'Área':rotArea,'Propriedade':nomeProp(a.propId)||'Geral','Brinco':a.brinco,'Sexo':labelSexo(a.sexo),'Raça':a.raca};
-    if(area==='reproducao'){ o['Categoria']=a.categoria||''; o['Prenhez']=a.prenhez||''; }
+    if(area==='reproducao'){ o['Categoria']=a.categoria||''; o['D0']=fmtDataBR(a.d0); o['D8']=fmtDataBR(a.d8); o['D10']=fmtDataBR(a.d10); o['Touro']=a.touro||''; o['Prenhez (DG)']=a.prenhez||''; }
     return Object.assign(o,{'Idade (categoria)':labelIdade(a.idade),'Peso atual (kg)':a.peso||'','Manejo':nomeManejo(a.manejoId)||'','Observação':a.obs||'','Data de cadastro':new Date(a.data).toLocaleString('pt-BR')});
   });
   const wb=XLSX.utils.book_new();
@@ -1404,7 +1525,7 @@ function exportarRelatorioExcel(){
 // ── Assistente passo a passo ──
 function novoAnimal(){
   garantirManejoAtual();   // o manejo do dia já aparece no assistente
-  w={ brinco:'', sexo:'', raca:'', categoria:'', prenhez:'', idade:'', peso:'', passo:0, seq:passosAtivos() };
+  w={ brinco:'', sexo:'', raca:'', categoria:'', d0:'', d8:'', d10:'', touro:'', prenhez:'', idade:'', peso:'', passo:0, seq:passosAtivos() };
   document.getElementById('telaHome').classList.remove('ativa');
   document.getElementById('telaCad').classList.add('ativa');
   renderPasso();
@@ -1433,6 +1554,10 @@ function renderSteps(){
   if(w.sexo)   partes.push(`<span class="chip">${labelSexo(w.sexo)}</span>`);
   if(w.raca)   partes.push(`<span class="chip">${w.raca}</span>`);
   if(w.categoria) partes.push(`<span class="chip">${w.categoria}</span>`);
+  if(w.d0)  partes.push(`<span class="chip">D0 ${fmtDataBR(w.d0)}</span>`);
+  if(w.d8)  partes.push(`<span class="chip">D8 ${fmtDataBR(w.d8)}</span>`);
+  if(w.d10) partes.push(`<span class="chip">D10 ${fmtDataBR(w.d10)}</span>`);
+  if(w.touro) partes.push(`<span class="chip">${escaparHTML(w.touro)}</span>`);
   if(w.prenhez) partes.push(`<span class="chip">${w.prenhez}</span>`);
   if(w.idade)  partes.push(`<span class="chip">${w.idade==='36+'?'+36m':w.idade+'m'}</span>`);
   if(w.peso)   partes.push(`<span class="chip">${w.peso} kg</span>`);
@@ -1450,7 +1575,7 @@ function renderPasso(){
   renderSteps();
   const passo=w.seq[w.passo];
   const body=document.getElementById('wizBody');
-  const titulos={brinco:'Número do brinco',sexo:'Sexo do animal',raca:'Raça',categoria:'Categoria',prenhez:'Prenhez',idade:'Idade',peso:'Peso do animal',obs:'Observação'};
+  const titulos={brinco:'Número do brinco',sexo:'Sexo do animal',raca:'Raça',categoria:'Categoria',d0:'D0 — 1ª etapa',d8:'D8 — 2ª etapa',d10:'D10 — inseminação',touro:'Touro (sêmen)',prenhez:'Prenhez (DG)',idade:'Idade',peso:'Peso do animal',obs:'Observação'};
   document.getElementById('wizTitulo').textContent=titulos[passo];
 
   if(passo==='brinco'){
@@ -1497,6 +1622,30 @@ function renderPasso(){
       <div class="hint">A vaca está cheia ou vazia?</div>
       <div style="display:grid;gap:14px">
         ${PRENHEZES.map(c=>`<button class="opt g" onclick="escolher('prenhez','${c}')">${c}</button>`).join('')}
+        <button class="opt" onclick="escolher('prenhez','')">Pular por enquanto</button>
+      </div>`;
+  }
+  else if(passo==='d0' || passo==='d8' || passo==='d10'){
+    const legenda={d0:'Dia 0 — colocação do implante',d8:'Dia 8 — retirada do implante',d10:'Dia 10 — inseminação (IATF)'}[passo];
+    const val=w[passo]||'';
+    body.innerHTML=`
+      <div class="hint">${legenda}</div>
+      <div style="display:grid;gap:12px;max-width:340px;margin:0 auto">
+        <input type="date" id="dataEtapa" value="${val}" style="width:100%;border:2px solid var(--border);border-radius:14px;padding:16px;font-family:inherit;font-size:1.15rem;font-weight:700;color:var(--green-deep);background:#fff;outline:none;text-align:center">
+        <button class="opt g" onclick="usarHoje()">Foi hoje (${fmtDataBR(hojeISO())})</button>
+        <button class="opt" onclick="confirmarData('${passo}')"><span class="em">✔</span> Confirmar data</button>
+        <button class="opt" onclick="pularData('${passo}')">Esta etapa ainda não foi feita — pular</button>
+      </div>`;
+  }
+  else if(passo==='touro'){
+    const lista=tourosDoManejo(manejoAtualId);
+    body.innerHTML=`
+      <div class="hint">Qual touro/sêmen foi usado?</div>
+      <div style="display:grid;gap:11px">
+        ${lista.map(t=>`<button class="opt g" onclick="escolher('touro',${JSON.stringify(t).replace(/"/g,'&quot;')})">${escaparHTML(t)}</button>`).join('')}
+        ${lista.length?'':'<div style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:6px 0">Nenhum touro cadastrado neste manejo ainda.</div>'}
+        <button class="opt" onclick="abrirTouros(manejoAtualId)" style="border-color:rgba(27,122,61,.4);background:var(--green-light);color:var(--green-2);font-weight:800">+ Cadastrar / gerenciar touros</button>
+        <button class="opt" onclick="escolher('touro','')">Pular por enquanto</button>
       </div>`;
   }
   else if(passo==='idade'){
@@ -1642,7 +1791,7 @@ let _editId=null, _ed=null;
 function abrirEditar(id){
   const a=rebanho.find(x=>x.id===id); if(!a) return;
   _editId=id;
-  _ed={sexo:a.sexo, raca:a.raca, idade:a.idade, categoria:a.categoria||'', prenhez:a.prenhez||''};
+  _ed={sexo:a.sexo, raca:a.raca, idade:a.idade, categoria:a.categoria||'', prenhez:a.prenhez||'', touro:a.touro||''};
   document.getElementById('editarTitulo').textContent=a.brinco?'Editar brinco '+a.brinco:'Editar animal sem brinco';
   document.getElementById('editarBody').innerHTML=`
     <div class="ed-label">Número do brinco</div>
@@ -1663,7 +1812,18 @@ function abrirEditar(id){
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px" id="edCategorias">
       ${CATEGORIAS.map(c=>`<button class="ed-opt" data-cat="${c}" onclick="edSel('categoria','${c}')">${c}</button>`).join('')}
     </div>
-    <div class="ed-label">Prenhez</div>
+    <div class="ed-label">Protocolo IATF — datas</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div><div style="font-size:0.68rem;color:var(--text-3);font-weight:800;margin-bottom:3px">D0</div><input type="date" id="edD0" value="${a.d0||''}" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:9px 6px;font-family:inherit;font-size:0.82rem;background:#fff;color:var(--text);outline:none"></div>
+      <div><div style="font-size:0.68rem;color:var(--text-3);font-weight:800;margin-bottom:3px">D8</div><input type="date" id="edD8" value="${a.d8||''}" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:9px 6px;font-family:inherit;font-size:0.82rem;background:#fff;color:var(--text);outline:none"></div>
+      <div><div style="font-size:0.68rem;color:var(--text-3);font-weight:800;margin-bottom:3px">D10</div><input type="date" id="edD10" value="${a.d10||''}" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:9px 6px;font-family:inherit;font-size:0.82rem;background:#fff;color:var(--text);outline:none"></div>
+    </div>
+    <div class="ed-label">Touro (sêmen)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="edTouros">
+      ${tourosDoManejo(a.manejoId).map(t=>`<button class="ed-opt" data-touro="${escaparHTML(t)}" onclick="edSel('touro',${JSON.stringify(t).replace(/"/g,'&quot;')})">${escaparHTML(t)}</button>`).join('')}
+    </div>
+    <button onclick="abrirTouros(${a.manejoId||'null'})" style="width:100%;margin-top:8px;border:1px solid rgba(27,122,61,.4);background:var(--green-light);color:var(--green-2);font-weight:800;border-radius:10px;padding:9px;cursor:pointer;font-family:inherit;font-size:0.85rem">+ Cadastrar / gerenciar touros</button>
+    <div class="ed-label">Prenhez (DG)</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="edPrenhez">
       ${PRENHEZES.map(c=>`<button class="ed-opt" data-pre="${c}" onclick="edSel('prenhez','${c}')">${c}</button>`).join('')}
     </div>`:''}
@@ -1696,6 +1856,7 @@ function edMarcar(){
   document.querySelectorAll('#edIdades .ed-opt').forEach(b=>b.className='ed-opt'+(b.dataset.idade===_ed.idade?' sel':''));
   document.querySelectorAll('#edCategorias .ed-opt').forEach(b=>b.className='ed-opt'+(b.dataset.cat===_ed.categoria?' sel':''));
   document.querySelectorAll('#edPrenhez .ed-opt').forEach(b=>b.className='ed-opt'+(b.dataset.pre===_ed.prenhez?' sel':''));
+  document.querySelectorAll('#edTouros .ed-opt').forEach(b=>b.className='ed-opt'+(b.dataset.touro===_ed.touro?' sel':''));
 }
 function fecharEditar(){ document.getElementById('modalEditar').classList.remove('visivel'); _editId=null; _ed=null; }
 function salvarEdicao(){
@@ -1707,8 +1868,14 @@ function salvarEdicao(){
   }
   a.brinco=brinco;
   a.sexo=_ed.sexo; a.raca=_ed.raca; a.idade=_ed.idade;
-  if(areaDe(a)==='reproducao') a.categoria=_ed.categoria||'';
-  if(areaDe(a)==='reproducao') a.prenhez=_ed.prenhez||'';
+  if(areaDe(a)==='reproducao'){
+    a.categoria=_ed.categoria||'';
+    a.prenhez=_ed.prenhez||'';
+    a.touro=_ed.touro||'';
+    a.d0=(document.getElementById('edD0')||{}).value||'';
+    a.d8=(document.getElementById('edD8')||{}).value||'';
+    a.d10=(document.getElementById('edD10')||{}).value||'';
+  }
   const propSel=document.getElementById('edProp').value;
   const novoProp = propSel ? parseInt(propSel,10) : null;
   const man=document.getElementById('edManejo').value;
@@ -1726,6 +1893,15 @@ function salvarEdicao(){
 
 // Escolha com avanço automático para o próximo passo
 function escolher(campo,valor){ w[campo]=valor; avancarPasso(); }
+// Passos de data (D0/D8/D10): guarda a data e lembra p/ o próximo animal do lote
+function usarHoje(){ const inp=document.getElementById('dataEtapa'); if(inp) inp.value=hojeISO(); }
+function confirmarData(campo){
+  const inp=document.getElementById('dataEtapa');
+  const v=inp?inp.value:'';
+  w[campo]=v; if(v) _ultData[campo]=v;   // repete no próximo animal (mesmo dia de manejo)
+  avancarPasso();
+}
+function pularData(campo){ w[campo]=''; avancarPasso(); }
 function mostrarObs(){
   document.getElementById('obsEscolha').style.display='none';
   document.getElementById('obsCampo').style.display='block';
@@ -1735,7 +1911,8 @@ function mostrarObs(){
 function salvarAnimal(){
   const campo=document.getElementById('obsTexto');
   rebanho.push({
-    id:novoId(), area, propId:propriedadeAtualId, brinco:w.brinco, sexo:w.sexo, raca:w.raca, categoria:w.categoria||'', prenhez:w.prenhez||'', idade:w.idade,
+    id:novoId(), area, propId:propriedadeAtualId, brinco:w.brinco, sexo:w.sexo, raca:w.raca, categoria:w.categoria||'', prenhez:w.prenhez||'',
+    d0:w.d0||'', d8:w.d8||'', d10:w.d10||'', touro:w.touro||'', idade:w.idade,
     peso:w.peso?parseInt(w.peso,10):null,
     pesagens:w.peso?[{peso:parseInt(w.peso,10), data:Date.now()}]:[],
     manejoId: garantirManejoAtual(),
@@ -1744,8 +1921,9 @@ function salvarAnimal(){
   salvar();
   atualizarBadge();   // contagem no cabeçalho atualiza JÁ, sem sair do cadastro
   toast(w.brinco ? '✓ Animal '+w.brinco+' cadastrado' : '✓ Animal cadastrado (sem brinco)');
-  // Vai direto para o próximo animal (assistente limpo, mesma sequência do manejo)
-  w={ brinco:'', sexo:'', raca:'', categoria:'', prenhez:'', idade:'', peso:'', passo:0, seq:w.seq };
+  // Vai direto para o próximo animal (assistente limpo, mesma sequência do manejo);
+  // as datas das etapas repetem no próximo animal (mesmo dia de manejo) — batida rápida
+  w={ brinco:'', sexo:'', raca:'', categoria:'', d0:_ultData.d0, d8:_ultData.d8, d10:_ultData.d10, touro:'', prenhez:'', idade:'', peso:'', passo:0, seq:w.seq };
   renderPasso();
   window.scrollTo(0,0);
 }
@@ -1962,7 +2140,7 @@ async function puxarEMesclar(){
     // Une os manejos da nuvem com os do aparelho (nuvem atualiza nome/campos dos já existentes)
     ((nuvem&&nuvem.manejos)||[]).forEach(m=>{
       const ex=manejos.find(x=>x.id===m.id);
-      if(ex){ ex.nome=m.nome; if(Array.isArray(m.campos)) ex.campos=m.campos; ex.semBrinco=!!m.semBrinco; }
+      if(ex){ ex.nome=m.nome; if(Array.isArray(m.campos)) ex.campos=m.campos; ex.semBrinco=!!m.semBrinco; if(Array.isArray(m.touros)) ex.touros=m.touros; }
       else manejos.push(m);
     });
     // Lápides de manejo: excluído em qualquer aparelho não volta
@@ -2022,8 +2200,8 @@ async function empurrarNuvem(){
   }
   try{
     await docNuvem().set({
-      rebanho: rebanho.map(a=>({id:a.id,area:areaDe(a),propId:a.propId||null,brinco:a.brinco,sexo:a.sexo,raca:a.raca,categoria:a.categoria||'',prenhez:a.prenhez||'',idade:a.idade,peso:a.peso||null,pesagens:(a.pesagens||[]).map(p=>({peso:p.peso,data:p.data})),manejoId:a.manejoId||null,obs:a.obs||'',data:a.data})),
-      manejos: manejos.map(m=>({id:m.id,area:areaDe(m),propId:m.propId||null,nome:m.nome,data:m.data,campos:Array.isArray(m.campos)?m.campos:null,semBrinco:!!m.semBrinco})),
+      rebanho: rebanho.map(a=>({id:a.id,area:areaDe(a),propId:a.propId||null,brinco:a.brinco,sexo:a.sexo,raca:a.raca,categoria:a.categoria||'',prenhez:a.prenhez||'',d0:a.d0||'',d8:a.d8||'',d10:a.d10||'',touro:a.touro||'',idade:a.idade,peso:a.peso||null,pesagens:(a.pesagens||[]).map(p=>({peso:p.peso,data:p.data})),manejoId:a.manejoId||null,obs:a.obs||'',data:a.data})),
+      manejos: manejos.map(m=>({id:m.id,area:areaDe(m),propId:m.propId||null,nome:m.nome,data:m.data,campos:Array.isArray(m.campos)?m.campos:null,semBrinco:!!m.semBrinco,touros:Array.isArray(m.touros)?m.touros:[]})),
       manejosExcluidos: manejosExcluidos.slice(-200),
       propriedades: propriedades.map(pr=>({id:pr.id,nome:pr.nome,proprietario:pr.proprietario||'',contato:pr.contato||'',data:pr.data})),
       propriedadesExcluidas: propriedadesExcluidas.slice(-200),

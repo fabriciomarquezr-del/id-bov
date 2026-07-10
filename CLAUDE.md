@@ -278,6 +278,40 @@ Proteções implementadas — NÃO REMOVER:
   importação (normaliza ch*/va*), nuvem/cofre e relatórios (filtro + seção de
   distribuição). `camposDefDaArea()` esconde categoria E prenhez no Corte.
 
+## Protocolo IATF: D0/D8/D10 + Touros (v38)
+
+Reprodução ganhou o fluxo de IATF (inseminação em tempo fixo), inspirado na
+planilha do veterinário (lote "43 VACAS CARIMBO 12"): colunas N° (brinco),
+D00/D08/D10 (etapas por data), TOURO (sêmen) e DG (Cheia/Vazia = prenhez).
+
+- **Novos campos do animal** (só reprodução; default `''`): `a.d0`, `a.d8`,
+  `a.d10` (datas 'AAAA-MM-DD', formato nativo do `<input type=date>`),
+  `a.touro` (nome escolhido). Helpers: `hojeISO()`, `fmtDataBR(iso)` (→ dd/mm/aaaa),
+  `parseDataISO(cel)` (BR/serial → ISO, usado na importação).
+- **CAMPOS_DEF** ganhou `d0`,`d8`,`d10`,`touro` (entre categoria e prenhez).
+  `CAMPOS_REPRO=['categoria','d0','d8','d10','touro','prenhez']` — `camposDefDaArea()`
+  esconde TODOS eles no Corte. Ordem em CAMPOS_DEF = ordem dos passos do assistente.
+- **Touros por manejo**: `m.touros` (array de nomes). Helpers `tourosDoManejo(id)`,
+  `addTouro(id,nome)` (dedup case-insensitive), `removeTouro`, `todosTouros()`
+  (sugestões de touros já usados). Modal `#modalTouros` (`abrirTouros`/`fecharTouros`/
+  `renderTouros`/`salvarTouroNovo`/`reusarTouro`/`excluirTouro`) — cadastra os nomes
+  que viram BOTÕES no passo do touro. Acessível do passo touro, da edição e da
+  config do manejo (botão "Touros deste manejo (N)" quando reprod + manejo já criado).
+- **Assistente**: passos de data (`d0/d8/d10`) com `<input type=date>` +
+  "Foi hoje" (`usarHoje`) + "Confirmar" (`confirmarData` guarda em `w[campo]` e
+  lembra em `_ultData` p/ repetir no próximo animal — batida em lote no mesmo dia)
+  + "pular" (`pularData`). Passo `touro`: botões de `tourosDoManejo(manejoAtualId)`
+  + gerenciar + pular. `w` e o reset em `salvarAnimal()` incluem d0/d8/d10/touro
+  (datas repetem no próximo animal, touro/prenhez limpam).
+- **Fluxo de 3 etapas num só manejo**: usuário volta ao mesmo manejo nos dias
+  D0/D8/D10; D8/D10 tardios são preenchidos EDITANDO o animal (modal de edição
+  tem 3 date inputs `edD0/edD8/edD10` + botões de touro `#edTouros`).
+- **Export/Import/Sync**: Excel (aba Rebanho) e CSV e relatório ganham colunas
+  D0/D8/D10/Touro/Prenhez (DG) só na reprodução (datas em dd/mm/aaaa). Importação
+  lê de volta (aceita cabeçalhos com/sem sufixo) e re-adiciona o touro ao manejo.
+  `empurrarNuvem` serializa d0/d8/d10/touro (animal) e `m.touros` (manejo);
+  `puxarEMesclar` mescla `ex.touros`.
+
 ## Relatórios (v30)
 
 - Botão "Relatórios" na home (painelAnimais) abre `#telaRelatorio` (tela cheia).
