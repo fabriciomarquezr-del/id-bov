@@ -202,7 +202,10 @@
       <div style="font-size:0.78rem;color:var(--text-2);margin-bottom:14px">Primeira vez? Toque em <b>"Criar conta nova"</b>.</div>
       <div id="loginErro" style="display:none;background:var(--red-light);color:var(--red);border-radius:10px;padding:9px 12px;font-size:0.8rem;font-weight:700;margin-bottom:10px"></div>
       <input id="loginEmail" type="email" placeholder="E-mail" autocomplete="email" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);margin-bottom:10px;outline:none;font-family:inherit;font-size:16px">
-      <input id="loginSenha" type="password" placeholder="Senha (mín. 6)" autocomplete="current-password" style="width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);margin-bottom:12px;outline:none;font-family:inherit;font-size:16px">
+      <div style="position:relative;margin-bottom:12px">
+        <input id="loginSenha" type="password" placeholder="Senha (mín. 6)" autocomplete="current-password" style="width:100%;padding:13px 46px 13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);outline:none;font-family:inherit;font-size:16px">
+        <button type="button" id="loginVerSenha" onclick="alternarVerSenha()" aria-label="Mostrar senha" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:8px;color:var(--text-3);display:flex" title="Mostrar/ocultar senha"></button>
+      </div>
       <button class="btn-grande" style="font-size:1.05rem;padding:16px;margin-bottom:9px" onclick="loginEntrar()">Entrar</button>
       <button class="btn-claro" style="margin-top:0" onclick="loginCriar()">Criar conta nova</button>
       <button class="btn-claro" style="margin-top:9px;border:none;background:transparent;color:var(--text-2)" onclick="loginRedefinir()">Esqueci a senha</button>
@@ -1561,6 +1564,20 @@ async function loginCriar(){
   try{ await _auth.createUserWithEmailAndPassword(c.em,c.sn); }
   catch(e){ loginErro(traduzErroAuth(e)); }
 }
+// Olho: mostrar/ocultar a senha no login
+function _icoOlho(aberto){
+  return aberto
+    ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>'
+    : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.9 17.9A10.5 10.5 0 0 1 12 19c-6.5 0-10-7-10-7a18 18 0 0 1 5.1-5.9M9.9 4.2A10.5 10.5 0 0 1 12 4c6.5 0 10 7 10 7a18 18 0 0 1-2.3 3.3M9.5 9.5a3 3 0 0 0 4.2 4.2"/><path d="M2 2l20 20"/></svg>';
+}
+function alternarVerSenha(){
+  const inp=document.getElementById('loginSenha');
+  const btn=document.getElementById('loginVerSenha');
+  const ver = inp.type==='password';
+  inp.type = ver ? 'text' : 'password';
+  btn.innerHTML = _icoOlho(ver);
+  btn.setAttribute('aria-label', ver ? 'Ocultar senha' : 'Mostrar senha');
+}
 async function loginRedefinir(){
   const em=document.getElementById('loginEmail').value.trim();
   if(!em){ loginErro('Digite seu e-mail no campo acima.'); return; }
@@ -1787,6 +1804,7 @@ carregarProps();
 renderHome();
 var _bl=document.getElementById('brandLogo'); if(_bl) _bl.innerHTML=ico('logo',26);
 var _ll=document.getElementById('loginLogo'); if(_ll) _ll.innerHTML=ico('logo',68);
+var _vs=document.getElementById('loginVerSenha'); if(_vs) _vs.innerHTML=_icoOlho(false);
 // A área só é escolhida DEPOIS do login (dentro de onAuthMudou).
 // Pede ao sistema para NÃO apagar o armazenamento deste app ("liberar espaço")
 try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
