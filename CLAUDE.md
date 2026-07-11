@@ -312,6 +312,26 @@ D00/D08/D10 (etapas por data), TOURO (sêmen) e DG (Cheia/Vazia = prenhez).
   `empurrarNuvem` serializa d0/d8/d10/touro (animal) e `m.touros` (manejo);
   `puxarEMesclar` mescla `ex.touros`.
 
+## Continuidade do lote — IATF em etapas (v39)
+
+O manejo é um LOTE que evolui ao longo de ~10 dias: cria no D0, volta no D8,
+depois no D10. O vínculo sempre existiu (d0/d8/d10 no mesmo animal; manejo salvo
+na nuvem), mas faltava a conveniência de avançar o lote inteiro de uma vez.
+
+- `statusLote(id)` → `{n, d0, d8, d10, touro, dg}` = quantos animais do manejo já
+  têm cada etapa/campo.
+- **Card do manejo** (só reprodução, em `renderManejos`): linha "Protocolo:
+  D0 x/n · D8 y/n · D10 z/n" (verde quando completo) + botão destacado
+  "Dar continuidade ao lote (D0 / D8 / D10)".
+- **Modal `#modalLote`** (`abrirLote`/`fecharLote`/`renderLote`): uma linha por
+  etapa com contador feito/total, `<input type=date>` (default hoje) e botão
+  "Marcar nos X que faltam" (`marcarEtapaLote(campo)`): pede confirmação e
+  preenche a data SÓ em quem ainda não tem aquela etapa (`if(!a[campo])` — nunca
+  sobrescreve). Rodapé com Touro/DG (preenchidos por animal) + atalho
+  "Ver/editar animais do lote" (`verManejo`). Após marcar: `salvar()` +
+  `renderLote()` + `renderHome()` (atualiza o card atrás).
+- Exceções (animal que faltou no dia) seguem no lápis de edição individual.
+
 ## Relatórios (v30)
 
 - Botão "Relatórios" na home (painelAnimais) abre `#telaRelatorio` (tela cheia).

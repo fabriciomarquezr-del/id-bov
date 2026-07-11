@@ -451,6 +451,15 @@
   </div>
 </div>
 
+<!-- ══ MODAL: CONTINUIDADE DO LOTE (protocolo IATF em etapas) ══ -->
+<div class="overlay" id="modalLote" onclick="if(event.target===this)fecharLote()">
+  <div class="caixa" style="max-height:88vh;overflow-y:auto">
+    <h3 id="loteTitulo">Continuidade do lote</h3>
+    <div id="loteBody"></div>
+    <button class="btn-nuvem-sec" style="margin-bottom:0" onclick="fecharLote()">Fechar</button>
+  </div>
+</div>
+
 <!-- ══ MODAL: PESAGENS DO ANIMAL ══ -->
 <div class="overlay" id="modalPesagem" onclick="if(event.target===this)fecharPesagem()">
   <div class="caixa">
@@ -759,6 +768,13 @@ function animaisDoManejo(id){
   if(id==='sem') return rebanho.filter(a=>areaDe(a)===area && propDe(a)===propriedadeAtualId && (!a.manejoId || !manejos.some(m=>m.id===a.manejoId)));
   return rebanho.filter(a=>a.manejoId===id);
 }
+// Progresso do protocolo IATF no lote: quantos animais já têm cada etapa
+function statusLote(id){
+  const b=animaisDoManejo(id);
+  return { n:b.length,
+    d0:b.filter(a=>a.d0).length, d8:b.filter(a=>a.d8).length, d10:b.filter(a=>a.d10).length,
+    touro:b.filter(a=>a.touro).length, dg:b.filter(a=>a.prenhez).length };
+}
 // Garante que existe um manejo ativo (cria um com a data de hoje se preciso)
 function garantirManejoAtual(){
   const atual=manejos.find(m=>m.id===manejoAtualId);
@@ -848,6 +864,49 @@ function salvarTouroNovo(){
 }
 function reusarTouro(nome){ if(addTouro(_tourosManejoId, nome)) renderTouros(); }
 function excluirTouro(nome){ removeTouro(_tourosManejoId, nome); renderTouros(); }
+
+// ── Continuidade do lote: marca a etapa do dia (D0/D8/D10) em todo o lote ──
+let _loteId=null;
+function abrirLote(id){ _loteId=id; renderLote(); document.getElementById('modalLote').classList.add('visivel'); }
+function fecharLote(){ document.getElementById('modalLote').classList.remove('visivel'); _loteId=null; }
+function renderLote(){
+  const m=manejos.find(x=>x.id===_loteId); if(!m){ fecharLote(); return; }
+  const s=statusLote(_loteId);
+  document.getElementById('loteTitulo').textContent=m.nome;
+  const hoje=hojeISO();
+  const etapa=(campo,rot,leg)=>{
+    const feito=s[campo], falta=s.n-feito, completo=(feito===s.n && s.n>0);
+    return `<div style="background:#fff;border:1.5px solid ${completo?'rgba(27,122,61,.4)':'var(--border)'};border-radius:12px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div><div style="font-weight:800;color:var(--green-deep)">${rot}</div><div style="font-size:0.74rem;color:var(--text-3)">${leg}</div></div>
+        <div style="font-family:'Space Mono',monospace;font-weight:700;font-size:0.9rem;color:${completo?'var(--green-2)':'var(--text-2)'}">${feito}/${s.n}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:stretch">
+        <input type="date" id="loteData_${campo}" value="${hoje}" style="flex:1;min-width:0;border:1.5px solid var(--border);border-radius:10px;padding:9px;font-family:inherit;font-size:0.9rem;background:#fff;color:var(--text);outline:none">
+        <button onclick="marcarEtapaLote('${campo}')" ${falta?'':'disabled'} style="flex:none;border:none;background:${falta?'var(--green)':'var(--border)'};color:${falta?'#fff':'var(--text-3)'};font-weight:800;font-size:0.8rem;padding:0 13px;border-radius:10px;cursor:${falta?'pointer':'default'};font-family:inherit">${falta?`Marcar nos ${falta} que faltam`:'Todos ✓'}</button>
+      </div>
+    </div>`;
+  };
+  document.getElementById('loteBody').innerHTML=`
+    <div style="font-size:0.82rem;color:var(--text-2);line-height:1.45;margin-bottom:14px">Lote com <b>${s.n}</b> ${s.n===1?'animal':'animais'}. Escolha a data e marque a etapa do dia — vale para todos que ainda não a têm. Cada animal guarda o D0, D8 e D10 juntos, então o lote segue de onde parou.</div>
+    ${etapa('d0','D0 — 1ª etapa','Colocação do implante')}
+    ${etapa('d8','D8 — 2ª etapa','Retirada do implante')}
+    ${etapa('d10','D10 — inseminação','IATF')}
+    <div style="font-size:0.76rem;color:var(--text-3);margin:2px 0 12px;text-align:center">Touro: ${s.touro}/${s.n} · DG (prenhez): ${s.dg}/${s.n} — preenchidos por animal</div>
+    <button onclick="fecharLote();verManejo(${_loteId})" style="width:100%;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:700;font-size:0.85rem;padding:11px;border-radius:10px;cursor:pointer;font-family:inherit;margin-bottom:6px">Ver / editar animais do lote</button>`;
+}
+function marcarEtapaLote(campo){
+  if(!_loteId) return;
+  const inp=document.getElementById('loteData_'+campo); const v=inp?inp.value:'';
+  if(!v){ toast('Escolha a data da etapa'); return; }
+  const rot=campo.toUpperCase();
+  const b=animaisDoManejo(_loteId);
+  const faltam=b.filter(a=>!a[campo]).length;
+  if(!confirm(`Marcar ${rot} = ${fmtDataBR(v)} em ${faltam} ${faltam===1?'animal que ainda não tem':'animais que ainda não têm'} esta etapa?`)) return;
+  let n=0; b.forEach(a=>{ if(!a[campo]){ a[campo]=v; n++; } });
+  if(n){ salvar(); renderLote(); renderHome(); toast(`${rot} marcado em ${n} ${n===1?'animal':'animais'} (${fmtDataBR(v)})`, 4000); }
+  else toast('Todos os animais já tinham esta etapa');
+}
 
 // ── Datas das etapas (D0/D8/D10): guardadas como 'AAAA-MM-DD' (valor nativo) ──
 function hojeISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -1039,9 +1098,11 @@ function renderManejos(){
           </div>
           <div style="font-size:0.75rem;color:var(--text-3);margin-top:2px">${new Date(m.data).toLocaleDateString('pt-BR')} · ${bichos.length} ${bichos.length===1?'animal':'animais'} · ♂ ${bichos.filter(a=>a.sexo==='M').length} · ♀ ${bichos.filter(a=>a.sexo==='F').length}</div>
           <div style="font-size:0.7rem;color:var(--text-3);margin-top:2px">Preenche: ${[...(m.semBrinco?[]:['Brinco']), ...camposDoManejo(m).map(rotuloCampo)].join(' · ')}</div>
+          ${areaDe(m)==='reproducao' && bichos.length ? (function(){ const s=statusLote(m.id); const et=(r,f)=>`<span style="color:${f===s.n?'var(--green-2)':'var(--text-2)'};font-weight:700">${r} ${f}/${s.n}</span>`; return `<div style="font-size:0.72rem;margin-top:4px;font-family:'Space Mono',monospace">Protocolo: ${et('D0',s.d0)} · ${et('D8',s.d8)} · ${et('D10',s.d10)}</div>`; })() : ''}
         </div>
       </div>
-      <div style="display:flex;gap:7px;margin-top:10px">
+      ${areaDe(m)==='reproducao' ? `<button onclick="abrirLote(${m.id})" style="width:100%;margin-top:10px;border:none;background:var(--green);color:#fff;font-weight:800;font-size:0.82rem;padding:10px;border-radius:10px;cursor:pointer;font-family:inherit">Dar continuidade ao lote (D0 / D8 / D10)</button>` : ''}
+      <div style="display:flex;gap:7px;margin-top:${areaDe(m)==='reproducao'?'7':'10'}px">
         <button onclick="verManejo(${m.id})" style="flex:1;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:700;font-size:0.78rem;padding:8px;border-radius:9px;cursor:pointer;font-family:inherit">Ver animais</button>
         ${ativo?'':`<button onclick="usarManejo(${m.id})" style="flex:1;border:1px solid rgba(27,122,61,.4);background:var(--green-light);color:var(--green-2);font-weight:700;font-size:0.78rem;padding:8px;border-radius:9px;cursor:pointer;font-family:inherit">Usar neste</button>`}
         <button onclick="abrirManejoCfg(${m.id})" title="Editar nome e campos" style="flex:none;border:1px solid var(--border);background:#fff;color:var(--text-2);font-weight:700;font-size:0.78rem;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit">${ico('lapis',14)}</button>
