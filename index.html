@@ -460,6 +460,15 @@
   </div>
 </div>
 
+<!-- ══ MODAL: MARCAR ETAPA POR BRINCO (curral) — complementa animal já cadastrado ══ -->
+<div class="overlay" id="modalMarcar" onclick="if(event.target===this)fecharMarcar()">
+  <div class="caixa" style="max-height:92vh;overflow-y:auto">
+    <h3 id="marcTitulo">Marcar por brinco</h3>
+    <div id="marcBody"></div>
+    <button class="btn-nuvem-acao" style="margin-top:14px" onclick="fecharMarcar()">✔ Concluir</button>
+  </div>
+</div>
+
 <!-- ══ MODAL: PESAGENS DO ANIMAL ══ -->
 <div class="overlay" id="modalPesagem" onclick="if(event.target===this)fecharPesagem()">
   <div class="caixa">
@@ -885,6 +894,7 @@ function renderLote(){
         <input type="date" id="loteData_${campo}" value="${hoje}" style="flex:1;min-width:0;border:1.5px solid var(--border);border-radius:10px;padding:9px;font-family:inherit;font-size:0.9rem;background:#fff;color:var(--text);outline:none">
         <button onclick="marcarEtapaLote('${campo}')" ${falta?'':'disabled'} style="flex:none;border:none;background:${falta?'var(--green)':'var(--border)'};color:${falta?'#fff':'var(--text-3)'};font-weight:800;font-size:0.8rem;padding:0 13px;border-radius:10px;cursor:${falta?'pointer':'default'};font-family:inherit">${falta?`Marcar nos ${falta} que faltam`:'Todos ✓'}</button>
       </div>
+      <div style="text-align:center;margin-top:8px"><button onclick="abrirMarcar(${_loteId},'${campo}')" style="border:none;background:none;color:var(--green-2);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;text-decoration:underline">Marcar animal por animal (curral) ›</button></div>
     </div>`;
   };
   document.getElementById('loteBody').innerHTML=`
@@ -906,6 +916,75 @@ function marcarEtapaLote(campo){
   let n=0; b.forEach(a=>{ if(!a[campo]){ a[campo]=v; n++; } });
   if(n){ salvar(); renderLote(); renderHome(); toast(`${rot} marcado em ${n} ${n===1?'animal':'animais'} (${fmtDataBR(v)})`, 4000); }
   else toast('Todos os animais já tinham esta etapa');
+}
+
+// ── Marcar etapa POR BRINCO (curral): acha o animal já cadastrado e complementa ──
+// (o D8/D10 não recadastra o animal — só adiciona a data na linha que já existe)
+let _marc=null;
+function abrirMarcar(manejoId, stage){
+  _marc={manejoId, stage, data:hojeISO(), brinco:'', feitos:[]};
+  renderMarcar();
+  document.getElementById('modalMarcar').classList.add('visivel');
+}
+function fecharMarcar(){
+  document.getElementById('modalMarcar').classList.remove('visivel');
+  _marc=null;
+  if(document.getElementById('modalLote').classList.contains('visivel')) renderLote();
+  renderHome();
+}
+function renderMarcar(){
+  const m=manejos.find(x=>x.id===_marc.manejoId);
+  const rot=_marc.stage.toUpperCase();
+  const legenda={d0:'Colocação do implante',d8:'Retirada do implante',d10:'Inseminação (IATF)'}[_marc.stage];
+  document.getElementById('marcTitulo').textContent=`${rot} por brinco`;
+  const vazio=!_marc.brinco;
+  document.getElementById('marcBody').innerHTML=`
+    <div style="font-size:0.8rem;color:var(--text-2);line-height:1.45;margin-bottom:10px">${m?`Lote <b>${escaparHTML(m.nome)}</b>. `:''}${legenda}. Digite o brinco do animal que passou e confirme — o sistema acha o animal já cadastrado e adiciona o ${rot} na mesma linha (não cria animal novo).</div>
+    <div class="ed-label">Data do ${rot}</div>
+    <input type="date" id="marcData" value="${_marc.data}" onchange="_marc.data=this.value" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px;font-family:inherit;font-size:0.95rem;background:#fff;color:var(--text);outline:none;margin-bottom:12px">
+    <div class="visor ${vazio?'vazio':''}" id="marcVisor">${vazio?'—':escaparHTML(_marc.brinco)}</div>
+    <div id="marcMsg" style="text-align:center;font-size:0.85rem;font-weight:700;min-height:20px;margin-top:6px"></div>
+    <div class="keys compacto">
+      ${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="key" onclick="marcDigito('${n}')">${n}</button>`).join('')}
+      <button class="key del" onclick="marcApagar()">⌫</button>
+      <button class="key" onclick="marcDigito('0')">0</button>
+      <button class="key ok" onclick="marcConfirmar()" ${vazio?'disabled':''}>✓</button>
+    </div>
+    ${_marc.feitos.length?`<div style="margin-top:14px"><div class="ed-label">Marcados agora (${_marc.feitos.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px">${_marc.feitos.map(b=>`<span class="chip" style="background:var(--green-light);border-color:rgba(27,122,61,.4);color:var(--green-2)">${escaparHTML(b)}</span>`).join('')}</div></div>`:''}`;
+}
+function atualizarMarcVisor(){
+  const v=document.getElementById('marcVisor'); if(!v) return;
+  v.textContent=_marc.brinco||'—'; v.classList.toggle('vazio',!_marc.brinco);
+  const ok=document.querySelector('#modalMarcar .key.ok'); if(ok) ok.disabled=!_marc.brinco;
+  const msg=document.getElementById('marcMsg'); if(msg) msg.textContent='';
+}
+function marcDigito(d){ if(_marc.brinco.length>=12) return; _marc.brinco+=d; atualizarMarcVisor(); }
+function marcApagar(){ _marc.brinco=_marc.brinco.slice(0,-1); atualizarMarcVisor(); }
+function marcConfirmar(){
+  const brinco=_marc.brinco.trim(); if(!brinco) return;
+  const stage=_marc.stage, data=_marc.data;
+  if(!data){ toast('Escolha a data da etapa'); return; }
+  // acha o animal já cadastrado nesta área + propriedade
+  const a=rebanho.find(x=>String(x.brinco)===brinco && areaDe(x)===area && propDe(x)===propriedadeAtualId);
+  if(!a){
+    const msg=document.getElementById('marcMsg');
+    msg.style.color='var(--red)';
+    msg.innerHTML=`Brinco ${escaparHTML(brinco)} não está cadastrado neste rebanho.<br><span style="font-weight:600;color:var(--text-3)">Confira o número ou cadastre pelo botão "Cadastrar animal".</span>`;
+    return;
+  }
+  const jaTinha=!!a[stage];
+  a[stage]=data;
+  // se o animal estava sem manejo, vincula ao lote aberto (mantém tudo numa linha)
+  if(_marc.manejoId && (!a.manejoId || !manejos.some(m=>m.id===a.manejoId))) a.manejoId=_marc.manejoId;
+  salvar();
+  _marc.feitos=_marc.feitos.filter(b=>b!==brinco); _marc.feitos.unshift(brinco);
+  _marc.brinco='';
+  renderMarcar();
+  const msg=document.getElementById('marcMsg');
+  msg.style.color='var(--green-2)';
+  msg.textContent = jaTinha
+    ? `Brinco ${brinco}: ${stage.toUpperCase()} atualizado para ${fmtDataBR(data)}`
+    : `✓ Brinco ${brinco}: ${stage.toUpperCase()} registrado (${fmtDataBR(data)})`;
 }
 
 // ── Datas das etapas (D0/D8/D10): guardadas como 'AAAA-MM-DD' (valor nativo) ──
@@ -1765,7 +1844,18 @@ function atualizarDup(){
   const av=document.getElementById('dupAviso'); if(!av) return;
   av.textContent = (w.brinco && animaisDaArea().some(a=>a.brinco===w.brinco)) ? 'Atenção: este brinco já está cadastrado' : '';
 }
-function confirmarBrinco(){ if(w.brinco) avancarPasso(); }
+function confirmarBrinco(){
+  if(!w.brinco) return;
+  // Trava anti-duplicata: se o brinco já existe nesta área+propriedade, o certo é
+  // COMPLEMENTAR o animal (D8/D10, touro, prenhez) — não criar outra linha.
+  const ex=rebanho.find(a=>String(a.brinco)===w.brinco && areaDe(a)===area && propDe(a)===propriedadeAtualId);
+  if(ex){
+    if(confirm(`O brinco ${w.brinco} já está cadastrado nesta área.\n\nOK = COMPLEMENTAR esse animal (adicionar D8/D10, touro, prenhez…)\nCancelar = criar outro animal com o mesmo número`)){
+      terminarCadastro(); abrirEditar(ex.id); return;
+    }
+  }
+  avancarPasso();
+}
 
 // Teclado do peso (kg)
 function pesoDigito(d){

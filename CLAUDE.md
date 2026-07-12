@@ -332,6 +332,25 @@ na nuvem), mas faltava a conveniência de avançar o lote inteiro de uma vez.
   `renderLote()` + `renderHome()` (atualiza o card atrás).
 - Exceções (animal que faltou no dia) seguem no lápis de edição individual.
 
+## Marcar etapa por brinco + trava anti-recadastro (v40)
+
+Problema real: no dia do D8/D10 o usuário criava um NOVO manejo e recadastrava os
+brincos → linhas duplicadas, sem continuidade por animal. O D0 é o cadastro; D8 e
+D10 devem só COMPLEMENTAR a linha do animal já cadastrado.
+
+- **Modo curral** `#modalMarcar` (`abrirMarcar(manejoId,stage)` / `renderMarcar` /
+  `marcDigito`/`marcApagar`/`atualizarMarcVisor`/`marcConfirmar`/`fecharMarcar`):
+  teclado numérico (classes `.keys.compacto`) + data (default hoje). Digita o
+  brinco → `marcConfirmar()` acha `rebanho.find(brinco===x & area & prop)` e faz
+  `a[stage]=data` na MESMA linha (nunca cria animal); se estava sem manejo, vincula
+  ao lote. Não encontrado → mensagem, nada criado. Lista "Marcados agora" (chips).
+  Entrada: link "Marcar animal por animal (curral) ›" em cada etapa do `#modalLote`.
+- **Trava no cadastro normal** (`confirmarBrinco`): se o brinco já existe em
+  área+propriedade, `confirm()` oferece COMPLEMENTAR (fecha wizard → `abrirEditar`
+  do existente) ou criar outro mesmo assim. Corta a duplicação na origem.
+- Fluxo correto: D0 = cadastrar (Cadastrar animal). D8/D10 = abrir o lote →
+  "Marcar nos X que faltam" (lote todo) OU "Marcar por brinco" (curral, um a um).
+
 ## Relatórios (v30)
 
 - Botão "Relatórios" na home (painelAnimais) abre `#telaRelatorio` (tela cheia).
