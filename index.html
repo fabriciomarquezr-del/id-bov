@@ -795,7 +795,7 @@ function garantirManejoAtual(){
 }
 // Campos que um manejo pode preencher (brinco é tratado à parte).
 // "categoria" (Primípara/Multípara/Vaca) existe SÓ na área de Reprodução.
-const CATEGORIAS=['Primípara','Multípara','Vaca'];
+const CATEGORIAS=['Novilha','Primípara','Multípara'];
 const PRENHEZES=['Cheia','Vazia'];   // prenhez (DG): só na área de Reprodução
 const CAMPOS_DEF=[
   {v:'sexo',     l:'Sexo (macho/fêmea)'},
@@ -1427,7 +1427,7 @@ async function importarPlanilha(files){
       const idadeObj = IDADES.find(x=>x.l===idadeTxt || x.v===idadeTxt);
       const idade = idadeObj ? idadeObj.v : '';
       const catTxt = String(l['Categoria'] ?? '').trim().toLowerCase();
-      const categoria = catTxt.startsWith('prim') ? 'Primípara' : (catTxt.startsWith('mult') ? 'Multípara' : (catTxt.startsWith('vaca') ? 'Vaca' : ''));
+      const categoria = catTxt.startsWith('nov') ? 'Novilha' : (catTxt.startsWith('prim') ? 'Primípara' : (catTxt.startsWith('mult') ? 'Multípara' : (catTxt.startsWith('vaca') ? 'Vaca' : '')));
       const preTxt = String(l['Prenhez (DG)'] ?? l['Prenhez'] ?? '').trim().toLowerCase();
       const prenhez = preTxt.startsWith('ch') ? 'Cheia' : (preTxt.startsWith('va') ? 'Vazia' : '');
       const d0 = parseDataISO(l['D0 (1ª etapa)'] ?? l['D0'] ?? '');
