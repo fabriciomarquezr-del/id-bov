@@ -1665,7 +1665,7 @@ function exportarRelatorioExcel(){
 // ── Assistente passo a passo ──
 function novoAnimal(){
   garantirManejoAtual();   // o manejo do dia já aparece no assistente
-  w={ brinco:'', sexo:'', raca:'', categoria:'', d0:'', d8:'', d10:'', touro:'', prenhez:'', idade:'', peso:'', passo:0, seq:passosAtivos() };
+  w={ brinco:'', sexo:'', raca:'', categoria:'', d0:'', d8:'', d10:'', touro:'', prenhez:'', idade:'', peso:'', complementarId:null, passo:0, seq:passosAtivos() };
   document.getElementById('telaHome').classList.remove('ativa');
   document.getElementById('telaCad').classList.add('ativa');
   renderPasso();
@@ -1691,6 +1691,7 @@ function renderSteps(){
   const nomeM=nomeManejo(manejoAtualId);
   if(nomeM) partes.push(`<span class="chip" style="background:var(--gold-light);border-color:rgba(216,165,33,.4);color:var(--gold-dark)">${ico('prancheta',11)} ${escaparHTML(nomeM)}</span>`);
   if(w.brinco) partes.push(`<span class="chip">Nº ${w.brinco}</span>`);
+  if(w.complementarId) partes.push(`<span class="chip" style="background:var(--green-light);border-color:rgba(27,122,61,.4);color:var(--green-2)">Continuando histórico</span>`);
   if(w.sexo)   partes.push(`<span class="chip">${labelSexo(w.sexo)}</span>`);
   if(w.raca)   partes.push(`<span class="chip">${w.raca}</span>`);
   if(w.categoria) partes.push(`<span class="chip">${w.categoria}</span>`);
@@ -1846,13 +1847,29 @@ function atualizarDup(){
 }
 function confirmarBrinco(){
   if(!w.brinco) return;
-  // Trava anti-duplicata: se o brinco já existe nesta área+propriedade, o certo é
-  // COMPLEMENTAR o animal (D8/D10, touro, prenhez) — não criar outra linha.
+  // Trava anti-duplicata (corte E reprodução): se o brinco já existe nesta
+  // área+propriedade, o certo é CONTINUAR O HISTÓRICO do animal — não criar
+  // outra linha. Peso vira evolução; etapas/manejos viram histórico do bicho.
   const ex=rebanho.find(a=>String(a.brinco)===w.brinco && areaDe(a)===area && propDe(a)===propriedadeAtualId);
-  if(ex){
-    if(confirm(`O brinco ${w.brinco} já está cadastrado nesta área.\n\nOK = COMPLEMENTAR esse animal (adicionar D8/D10, touro, prenhez…)\nCancelar = criar outro animal com o mesmo número`)){
-      terminarCadastro(); abrirEditar(ex.id); return;
+  if(ex && !w.complementarId){
+    if(confirm(`O brinco ${w.brinco} já está cadastrado.\n\nOK = CONTINUAR o histórico dele (as informações deste manejo entram no MESMO animal; o peso vira evolução)\nCancelar = criar outro animal com o mesmo número`)){
+      w.complementarId=ex.id;
+      // já conhecemos a identidade — pula esses passos e vai direto ao que é novo
+      w.sexo=ex.sexo||''; w.raca=ex.raca||''; w.idade=ex.idade||''; w.categoria=ex.categoria||'';
+      const nova=w.seq.filter(p=>{
+        if(p==='brinco') return false;
+        if(p==='sexo') return !ex.sexo;
+        if(p==='raca') return !ex.raca;
+        if(p==='idade') return !ex.idade;
+        if(p==='categoria') return !ex.categoria;
+        return true;   // peso, d0/d8/d10, touro, prenhez, obs → informação nova
+      });
+      w.seq = nova.length ? nova : ['obs'];
+      w.passo = 0;
+      renderPasso();
+      return;
     }
+    // Cancelou: cria outro animal mesmo assim → segue o fluxo normal
   }
   avancarPasso();
 }
@@ -2061,20 +2078,44 @@ function mostrarObs(){
 
 function salvarAnimal(){
   const campo=document.getElementById('obsTexto');
-  rebanho.push({
-    id:novoId(), area, propId:propriedadeAtualId, brinco:w.brinco, sexo:w.sexo, raca:w.raca, categoria:w.categoria||'', prenhez:w.prenhez||'',
-    d0:w.d0||'', d8:w.d8||'', d10:w.d10||'', touro:w.touro||'', idade:w.idade,
-    peso:w.peso?parseInt(w.peso,10):null,
-    pesagens:w.peso?[{peso:parseInt(w.peso,10), data:Date.now()}]:[],
-    manejoId: garantirManejoAtual(),
-    obs:campo?campo.value.trim():'', data:Date.now()
-  });
-  salvar();
-  atualizarBadge();   // contagem no cabeçalho atualiza JÁ, sem sair do cadastro
-  toast(w.brinco ? '✓ Animal '+w.brinco+' cadastrado' : '✓ Animal cadastrado (sem brinco)');
-  // Vai direto para o próximo animal (assistente limpo, mesma sequência do manejo);
-  // as datas das etapas repetem no próximo animal (mesmo dia de manejo) — batida rápida
-  w={ brinco:'', sexo:'', raca:'', categoria:'', d0:_ultData.d0, d8:_ultData.d8, d10:_ultData.d10, touro:'', prenhez:'', idade:'', peso:'', passo:0, seq:w.seq };
+  const obsVal=campo?campo.value.trim():'';
+  const pesoNum=w.peso?parseInt(w.peso,10):null;
+
+  if(w.complementarId){
+    // ── COMPLEMENTAR: adiciona ao MESMO animal (corte e reprodução) ──
+    // Não cria linha nova; o peso entra como nova pesagem (evolução).
+    const a=rebanho.find(x=>x.id===w.complementarId);
+    if(a){
+      if(w.sexo) a.sexo=w.sexo; if(w.raca) a.raca=w.raca; if(w.idade) a.idade=w.idade;
+      if(area==='reproducao'){
+        if(w.categoria) a.categoria=w.categoria;
+        if(w.prenhez) a.prenhez=w.prenhez;
+        if(w.d0) a.d0=w.d0; if(w.d8) a.d8=w.d8; if(w.d10) a.d10=w.d10;
+        if(w.touro) a.touro=w.touro;
+      }
+      if(pesoNum){ if(!Array.isArray(a.pesagens)) a.pesagens=[]; a.pesagens.push({peso:pesoNum, data:Date.now()}); a.peso=pesoNum; }
+      if(obsVal) a.obs = a.obs ? (a.obs+' · '+obsVal) : obsVal;
+      // vincula ao manejo atual só se estava sem manejo válido (mantém o histórico do lote)
+      if(!a.manejoId || !manejos.some(m=>m.id===a.manejoId)) a.manejoId=garantirManejoAtual();
+      salvar(); atualizarBadge();
+      toast('✓ '+(a.brinco?('Brinco '+a.brinco):'Animal')+': informação adicionada ao histórico'+(pesoNum?` (peso ${pesoNum} kg)`:''), 4000);
+    }
+  } else {
+    rebanho.push({
+      id:novoId(), area, propId:propriedadeAtualId, brinco:w.brinco, sexo:w.sexo, raca:w.raca, categoria:w.categoria||'', prenhez:w.prenhez||'',
+      d0:w.d0||'', d8:w.d8||'', d10:w.d10||'', touro:w.touro||'', idade:w.idade,
+      peso:pesoNum,
+      pesagens:pesoNum?[{peso:pesoNum, data:Date.now()}]:[],
+      manejoId: garantirManejoAtual(),
+      obs:obsVal, data:Date.now()
+    });
+    salvar();
+    atualizarBadge();   // contagem no cabeçalho atualiza JÁ, sem sair do cadastro
+    toast(w.brinco ? '✓ Animal '+w.brinco+' cadastrado' : '✓ Animal cadastrado (sem brinco)');
+  }
+  // Próximo animal: assistente limpo, sequência COMPLETA do manejo de novo
+  // (as datas das etapas repetem no mesmo dia de manejo — batida rápida)
+  w={ brinco:'', sexo:'', raca:'', categoria:'', d0:_ultData.d0, d8:_ultData.d8, d10:_ultData.d10, touro:'', prenhez:'', idade:'', peso:'', complementarId:null, passo:0, seq:passosAtivos() };
   renderPasso();
   window.scrollTo(0,0);
 }

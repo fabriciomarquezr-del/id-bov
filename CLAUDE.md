@@ -332,6 +332,25 @@ na nuvem), mas faltava a conveniência de avançar o lote inteiro de uma vez.
   `renderLote()` + `renderHome()` (atualiza o card atrás).
 - Exceções (animal que faltou no dia) seguem no lápis de edição individual.
 
+## Continuar histórico do animal — corte E reprodução (v41)
+
+Generaliza a trava (v40): digitar um brinco já cadastrado NÃO cria outro animal —
+continua o histórico do mesmo. Vale para as duas áreas.
+
+- `w.complementarId` (novo campo do estado do cadastro). `confirmarBrinco()`: se o
+  brinco existe em área+propriedade, `confirm()` oferece CONTINUAR (OK) ou criar
+  outro (Cancelar). Ao continuar: guarda `complementarId=ex.id`, pré-carrega a
+  identidade conhecida (sexo/raca/idade/categoria) e REMONTA `w.seq` pulando os
+  passos já conhecidos — vai direto ao que é novo (peso, d0/d8/d10, touro, prenhez,
+  obs). Chip verde "Continuando histórico" no resumo do wizard.
+- `salvarAnimal()` ramifica: com `complementarId`, ATUALIZA o animal existente
+  (`rebanho.find(id)`) em vez de `push`. O **peso entra como nova pesagem**
+  (`a.pesagens.push` → evolução), não sobrescreve; d0/d8/d10/touro/prenhez/
+  identidade são setados; obs é concatenada; vincula ao manejo se estava sem.
+  Reset do próximo animal volta a `seq:passosAtivos()` e `complementarId:null`.
+- Assim: corte = re-digitar o brinco na pesagem adiciona o peso à evolução;
+  reprodução = re-digitar adiciona D8/D10/etc. na mesma linha. Nunca duplica.
+
 ## Marcar etapa por brinco + trava anti-recadastro (v40)
 
 Problema real: no dia do D8/D10 o usuário criava um NOVO manejo e recadastrava os
