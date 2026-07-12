@@ -1245,13 +1245,23 @@ function excluir(id){
   toast(a.brinco ? 'Animal '+a.brinco+' excluído' : 'Animal excluído');
 }
 
+// Ordem CRESCENTE por brinco (número tratado como número: 14 < 35 < 1102);
+// alfanuméricos ordenam de forma natural; animais sem brinco vão para o fim.
+function cmpBrinco(a,b){
+  const x=String(a.brinco||''), y=String(b.brinco||'');
+  if(!x && !y) return a.data-b.data;
+  if(!x) return 1;
+  if(!y) return -1;
+  return x.localeCompare(y, 'pt', {numeric:true, sensitivity:'base'});
+}
+
 function exportarCSV(){
   const repro = area==='reproducao';
   const cab=['Area','Propriedade','Brinco','Sexo','Raca'];
   if(repro) cab.push('Categoria','D0','D8','D10','Touro','Prenhez (DG)');
   cab.push('Idade','Peso (kg)','Manejo','Observacao','Data');
   const linhas=[cab];
-  [...animaisDaArea()].sort((a,b)=>a.data-b.data).forEach(a=>{
+  [...animaisDaArea()].sort(cmpBrinco).forEach(a=>{
     const l=[area==='corte'?'Corte':'Reproducao', nomeProp(a.propId)||'Geral', a.brinco, labelSexo(a.sexo), a.raca];
     if(repro) l.push(a.categoria||'', fmtDataBR(a.d0), fmtDataBR(a.d8), fmtDataBR(a.d10), a.touro||'', a.prenhez||'');
     l.push(labelIdade(a.idade), a.peso||'', nomeManejo(a.manejoId)||'', (a.obs||'').replace(/[\r\n]+/g,' '), new Date(a.data).toLocaleString('pt-BR'));
@@ -1280,7 +1290,7 @@ function exportarExcel(){
   // ── Aba 1: Rebanho — uma linha por animal DA ÁREA ATIVA, valores por extenso ──
   const doArq = animaisDaArea();
   const rotuloArea = area==='corte' ? 'Corte' : 'Reprodução';
-  const linhas = [...doArq].sort((a,b)=>a.data-b.data).map(a=>{
+  const linhas = [...doArq].sort(cmpBrinco).map(a=>{
     const o={
     'Área':             rotuloArea,
     'Propriedade':      nomeProp(a.propId) || 'Geral',
@@ -1308,7 +1318,7 @@ function exportarExcel(){
 
   // ── Aba "Pesagens" — evolução de peso: uma linha por pesagem ──
   const pesagensLinhas = [];
-  [...doArq].sort((a,b)=>a.data-b.data).forEach(a=>{
+  [...doArq].sort(cmpBrinco).forEach(a=>{
     (a.pesagens||[]).forEach((p,i)=>{
       pesagensLinhas.push({
         'Brinco':                    a.brinco,
@@ -1651,7 +1661,7 @@ function exportarRelatorioExcel(){
   const animais=_relAnimaisCache;
   if(!animais.length){ toast('Nenhum animal para exportar'); return; }
   const rotArea=area==='corte'?'Corte':'Reprodução';
-  const linhas=animais.map(a=>{
+  const linhas=[...animais].sort(cmpBrinco).map(a=>{
     const o={'Área':rotArea,'Propriedade':nomeProp(a.propId)||'Geral','Brinco':a.brinco,'Sexo':labelSexo(a.sexo),'Raça':a.raca};
     if(area==='reproducao'){ o['Categoria']=a.categoria||''; o['D0']=fmtDataBR(a.d0); o['D8']=fmtDataBR(a.d8); o['D10']=fmtDataBR(a.d10); o['Touro']=a.touro||''; o['Prenhez (DG)']=a.prenhez||''; }
     return Object.assign(o,{'Idade (categoria)':labelIdade(a.idade),'Peso atual (kg)':a.peso||'','Manejo':nomeManejo(a.manejoId)||'','Observação':a.obs||'','Data de cadastro':new Date(a.data).toLocaleString('pt-BR')});
