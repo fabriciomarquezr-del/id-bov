@@ -1171,11 +1171,11 @@ function renderManejos(){
     const bichos=animaisDoManejo(m.id);
     const ativo=m.id===manejoAtualId;
     cards.push(`
-    <div style="background:#fff;border:1.5px solid ${ativo?'rgba(27,122,61,.5)':'var(--border)'};border-radius:14px;padding:13px 14px;margin-bottom:9px;box-shadow:var(--shadow-sm)">
+    <div style="background:${ativo?'var(--green-light)':'#fff'};border:${ativo?'2px solid var(--green)':'1.5px solid var(--border)'};border-radius:14px;padding:13px 14px;margin-bottom:9px;box-shadow:${ativo?'0 0 0 4px rgba(27,122,61,.16)':'var(--shadow-sm)'}">
       <div style="display:flex;align-items:center;gap:8px">
         <div style="flex:1;min-width:0">
           <div style="font-weight:800;font-size:0.98rem;color:var(--green-deep)">${ico('prancheta',15)} ${escaparHTML(m.nome)}
-            ${ativo?'<span style="background:var(--green);color:#fff;font-size:0.62rem;font-weight:800;border-radius:999px;padding:2px 8px;margin-left:5px;vertical-align:2px">ATIVO</span>':''}
+            ${ativo?'<span style="background:var(--green);color:#fff;font-size:0.62rem;font-weight:800;border-radius:999px;padding:2px 8px;margin-left:5px;vertical-align:2px">EM USO</span>':''}
           </div>
           <div style="font-size:0.75rem;color:var(--text-3);margin-top:2px">${new Date(m.data).toLocaleDateString('pt-BR')} · ${bichos.length} ${bichos.length===1?'animal':'animais'} · ♂ ${bichos.filter(a=>a.sexo==='M').length} · ♀ ${bichos.filter(a=>a.sexo==='F').length}</div>
           <div style="font-size:0.7rem;color:var(--text-3);margin-top:2px">Preenche: ${[...(m.semBrinco?[]:['Brinco']), ...camposDoManejo(m).map(rotuloCampo)].join(' · ')}</div>
@@ -1700,8 +1700,13 @@ function renderSteps(){
   document.getElementById('steps').innerHTML = w.seq.map((_,i)=>
     `<div class="step-dot ${i<w.passo?'done':(i===w.passo?'on':'')}"></div>`).join('');
   const partes=[];
-  const nomeM=nomeManejo(manejoAtualId);
-  if(nomeM) partes.push(`<span class="chip" style="background:var(--gold-light);border-color:rgba(216,165,33,.4);color:var(--gold-dark)">${ico('prancheta',11)} ${escaparHTML(nomeM)}</span>`);
+  const mAtual=manejos.find(x=>x.id===manejoAtualId);
+  const nomeM=mAtual?mAtual.nome:'';
+  if(nomeM){
+    const dt=new Date(mAtual.data).toLocaleDateString('pt-BR');
+    const comData=nomeM.includes(dt) ? escaparHTML(nomeM) : `${escaparHTML(nomeM)} · ${dt}`;
+    partes.push(`<span class="chip" style="background:var(--green-light);border-color:rgba(27,122,61,.45);color:var(--green-2);font-weight:800">${ico('prancheta',11)} ${comData}</span>`);
+  }
   if(w.brinco) partes.push(`<span class="chip">Nº ${w.brinco}</span>`);
   if(w.complementarId) partes.push(`<span class="chip" style="background:var(--green-light);border-color:rgba(27,122,61,.4);color:var(--green-2)">Continuando histórico</span>`);
   if(w.sexo)   partes.push(`<span class="chip">${labelSexo(w.sexo)}</span>`);
