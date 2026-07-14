@@ -104,6 +104,8 @@
       color:var(--green-deep);letter-spacing:2px;background:#fff;border:2px dashed var(--border);
       border-radius:16px;padding:18px 12px;min-height:82px;display:flex;align-items:center;justify-content:center;word-break:break-all}
     .visor.vazio{color:#B9C6BC}
+    /* Brinco já cadastrado: aviso VISUAL na própria barra (sem popup) */
+    .visor.dup{color:var(--red);border-color:var(--red);border-style:solid;background:rgba(221,82,55,.08)}
 
     /* ── Progresso do assistente ── */
     .steps{display:flex;gap:6px;justify-content:center;margin:2px 0 6px}
@@ -1851,35 +1853,40 @@ function apagar(){
   atualizarDup();
 }
 function usarSugestao(n){ w.brinco=n; renderPasso(); }
+// Animal já cadastrado nesta área+propriedade? (comparação por brinco)
+function animalDoBrinco(brinco){
+  return brinco ? rebanho.find(a=>String(a.brinco)===String(brinco) && areaDe(a)===area && propDe(a)===propriedadeAtualId) : null;
+}
+// Aviso VISUAL: a própria barra do número fica avermelhada quando o brinco já
+// existe (sem popup, sem clique). Se não existe, nenhum efeito.
 function atualizarDup(){
-  const av=document.getElementById('dupAviso'); if(!av) return;
-  av.textContent = (w.brinco && animaisDaArea().some(a=>a.brinco===w.brinco)) ? 'Atenção: este brinco já está cadastrado' : '';
+  const v=document.getElementById('visor');
+  const av=document.getElementById('dupAviso');
+  const existe=!!animalDoBrinco(w.brinco);
+  if(v) v.classList.toggle('dup', existe);
+  if(av) av.textContent = existe ? 'Já cadastrado — ao confirmar, entra no histórico deste animal' : '';
 }
 function confirmarBrinco(){
   if(!w.brinco) return;
-  // Trava anti-duplicata (corte E reprodução): se o brinco já existe nesta
-  // área+propriedade, o certo é CONTINUAR O HISTÓRICO do animal — não criar
-  // outra linha. Peso vira evolução; etapas/manejos viram histórico do bicho.
-  const ex=rebanho.find(a=>String(a.brinco)===w.brinco && areaDe(a)===area && propDe(a)===propriedadeAtualId);
+  // Sem popup: se o brinco já existe, CONTINUA o histórico automaticamente
+  // (não cria outra linha; peso vira evolução, etapas/manejos viram histórico).
+  const ex=animalDoBrinco(w.brinco);
   if(ex && !w.complementarId){
-    if(confirm(`O brinco ${w.brinco} já está cadastrado.\n\nOK = CONTINUAR o histórico dele (as informações deste manejo entram no MESMO animal; o peso vira evolução)\nCancelar = criar outro animal com o mesmo número`)){
-      w.complementarId=ex.id;
-      // já conhecemos a identidade — pula esses passos e vai direto ao que é novo
-      w.sexo=ex.sexo||''; w.raca=ex.raca||''; w.idade=ex.idade||''; w.categoria=ex.categoria||'';
-      const nova=w.seq.filter(p=>{
-        if(p==='brinco') return false;
-        if(p==='sexo') return !ex.sexo;
-        if(p==='raca') return !ex.raca;
-        if(p==='idade') return !ex.idade;
-        if(p==='categoria') return !ex.categoria;
-        return true;   // peso, d0/d8/d10, touro, prenhez, obs → informação nova
-      });
-      w.seq = nova.length ? nova : ['obs'];
-      w.passo = 0;
-      renderPasso();
-      return;
-    }
-    // Cancelou: cria outro animal mesmo assim → segue o fluxo normal
+    w.complementarId=ex.id;
+    // já conhecemos a identidade — pula esses passos e vai direto ao que é novo
+    w.sexo=ex.sexo||''; w.raca=ex.raca||''; w.idade=ex.idade||''; w.categoria=ex.categoria||'';
+    const nova=w.seq.filter(p=>{
+      if(p==='brinco') return false;
+      if(p==='sexo') return !ex.sexo;
+      if(p==='raca') return !ex.raca;
+      if(p==='idade') return !ex.idade;
+      if(p==='categoria') return !ex.categoria;
+      return true;   // peso, d0/d8/d10, touro, prenhez, obs → informação nova
+    });
+    w.seq = nova.length ? nova : ['obs'];
+    w.passo = 0;
+    renderPasso();
+    return;
   }
   avancarPasso();
 }
