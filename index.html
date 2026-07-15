@@ -101,18 +101,29 @@
     /* Durante o cadastro, o cabeçalho verde do app some (o assistente tem o seu
        próprio) — dá espaço p/ teclado+visor caberem sem rolagem no celular. */
     body.cadastrando header{display:none}
-    /* Telas baixas (celular retrato): compacta teclado e visor p/ tudo caber */
-    @media (max-height:820px){
-      .key{height:60px;font-size:1.7rem;border-radius:13px}
-      .keys{gap:9px;margin-top:11px}
-      .visor{font-size:2.2rem;min-height:58px;padding:12px}
-      .hint{margin-bottom:9px}
+    /* No cadastro (celular), o teclado PREENCHE a altura livre da tela:
+       números grandes em telas altas, compactando só o necessário nas baixas. */
+    body.cadastrando #telaCad{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+    body.cadastrando #wizBody{flex:1;display:flex;flex-direction:column;min-height:0}
+    body.cadastrando #wizBody .hint,
+    body.cadastrando #wizBody .visor{flex:none}
+    body.cadastrando #wizBody .keys{flex:1;grid-template-rows:repeat(4,1fr);margin-top:12px;padding-bottom:calc(6px + env(safe-area-inset-bottom))}
+    body.cadastrando #wizBody .keys .key{height:auto;min-height:50px;max-height:130px;font-size:clamp(1.9rem,6.4vh,3rem)}
+    /* Telas baixas: aperta visor/margens p/ sobrar mais espaço ao teclado */
+    @media (max-height:740px){
+      .visor{font-size:2rem;min-height:46px;padding:10px 12px}
+      .hint{margin-bottom:7px;font-size:0.9rem}
+      body.cadastrando #wizBody .keys{margin-top:8px}
+      body.cadastrando #wizBody .keys .key{min-height:44px}
     }
-    @media (max-height:700px){
-      .key{height:52px;font-size:1.5rem;border-radius:11px}
-      .keys{gap:7px;margin-top:8px}
-      .visor{font-size:1.9rem;min-height:46px;padding:9px}
-      .hint{margin-bottom:6px;font-size:0.9rem}
+    /* Telas bem baixas (iPhone SE com barra do Safari): compacta ainda mais */
+    @media (max-height:620px){
+      body.cadastrando #telaCad{padding-top:8px}
+      .visor{font-size:1.8rem;min-height:38px;padding:7px 12px}
+      .hint{margin-bottom:5px;font-size:0.86rem}
+      #resumoWiz{min-height:22px;margin-bottom:5px}
+      body.cadastrando #wizBody .keys{margin-top:6px;gap:7px}
+      body.cadastrando #wizBody .keys .key{min-height:36px;font-size:clamp(1.5rem,5.4vh,2rem)}
     }
 
     /* ── Visor do brinco ── */

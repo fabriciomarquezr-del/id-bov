@@ -9,7 +9,7 @@
 //  • Pré-cache com {cache:'reload'} — fura o cache HTTP do Safari (era a
 //    causa das atualizações nunca chegarem ao iPhone).
 // ══════════════════════════════════════════════
-const CACHE = 'id-bov-v46';
+const CACHE = 'id-bov-v47';
 
 // O app é guardado SEMPRE sob a chave './'. Pedir '/index.html' ao servidor
 // devolve um 307 para '/', e o Safari recusa uma navegação servida pelo SW que
