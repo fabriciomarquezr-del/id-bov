@@ -98,6 +98,22 @@
     .key.ok:active{box-shadow:0 1px 0 #0f5a2c}
     .key.ok:disabled{background:#B9C6BC;border-color:#a7b6ab;box-shadow:0 4px 0 #9aab9f;color:#eef;cursor:default;transform:none}
     .key.del{background:var(--red-light);border-color:rgba(221,82,55,.4);color:var(--red)}
+    /* Durante o cadastro, o cabeçalho verde do app some (o assistente tem o seu
+       próprio) — dá espaço p/ teclado+visor caberem sem rolagem no celular. */
+    body.cadastrando header{display:none}
+    /* Telas baixas (celular retrato): compacta teclado e visor p/ tudo caber */
+    @media (max-height:820px){
+      .key{height:60px;font-size:1.7rem;border-radius:13px}
+      .keys{gap:9px;margin-top:11px}
+      .visor{font-size:2.2rem;min-height:58px;padding:12px}
+      .hint{margin-bottom:9px}
+    }
+    @media (max-height:700px){
+      .key{height:52px;font-size:1.5rem;border-radius:11px}
+      .keys{gap:7px;margin-top:8px}
+      .visor{font-size:1.9rem;min-height:46px;padding:9px}
+      .hint{margin-bottom:6px;font-size:0.9rem}
+    }
 
     /* ── Visor do brinco ── */
     .visor{font-family:'Space Mono',monospace;font-weight:700;font-size:2.8rem;text-align:center;
@@ -1680,11 +1696,13 @@ function novoAnimal(){
   w={ brinco:'', sexo:'', raca:'', categoria:'', d0:'', d8:'', d10:'', touro:'', prenhez:'', idade:'', peso:'', complementarId:null, passo:0, seq:passosAtivos() };
   document.getElementById('telaHome').classList.remove('ativa');
   document.getElementById('telaCad').classList.add('ativa');
+  document.body.classList.add('cadastrando');   // esconde o cabeçalho do app
   renderPasso();
   window.scrollTo(0,0);
 }
 function terminarCadastro(){
   w=null;
+  document.body.classList.remove('cadastrando');
   document.getElementById('telaCad').classList.remove('ativa');
   document.getElementById('telaHome').classList.add('ativa');
   renderHome();
