@@ -338,9 +338,7 @@
     <div id="filtroBar" style="margin-top:12px"></div>
     <div class="list-header">Animais cadastrados</div>
     <div id="lista"></div>
-    <button class="btn-claro" style="display:flex;align-items:center;justify-content:center;gap:8px;border-color:rgba(27,122,61,.4);background:var(--green-light);color:var(--green-2);font-weight:800" onclick="abrirRelatorio()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg> Relatórios</button>
-    <button id="btnExportar" class="btn-claro" style="display:none" onclick="exportarExcel()" style="display:none;align-items:center;justify-content:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> Exportar planilha (Excel)</button>
-    <button class="btn-claro" onclick="document.getElementById('importInput').click()" style="display:flex;align-items:center;justify-content:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 8l5-5 5 5"/><path d="M12 3v12"/></svg> Importar planilha (recuperar dados)</button>
+    <button class="btn-claro" style="display:flex;align-items:center;justify-content:center;gap:8px;border-color:rgba(27,122,61,.4);background:var(--green-light);color:var(--green-2);font-weight:800" onclick="abrirFerramentas()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg> Relatórios e planilhas</button>
     <input type="file" id="importInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarPlanilha(this.files)">
   </div>
 
@@ -349,6 +347,26 @@
     <button class="btn-claro" style="border-color:rgba(27,122,61,.45);background:var(--green-light);color:var(--green-2);font-weight:800" onclick="novoManejo()">+ Iniciar novo manejo</button>
     <div class="list-header">Manejos</div>
     <div id="manejosLista"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: RELATÓRIOS E PLANILHAS (junta as 3 ações num só lugar) ══ -->
+<div class="overlay" id="modalFerramentas" onclick="if(event.target===this)fecharFerramentas()">
+  <div class="caixa">
+    <h3>Relatórios e planilhas</h3>
+    <button class="opt g" style="justify-content:flex-start;gap:12px;margin-bottom:10px" onclick="fecharFerramentas();abrirRelatorio()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
+      <span style="text-align:left"><b>Relatórios</b><br><small style="font-weight:600;opacity:.8">Ver e compartilhar resumos</small></span>
+    </button>
+    <button class="opt" style="justify-content:flex-start;gap:12px;margin-bottom:10px" onclick="fecharFerramentas();exportarExcel()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+      <span style="text-align:left"><b>Exportar planilha</b><br><small style="font-weight:600;opacity:.8">Baixar tudo em Excel</small></span>
+    </button>
+    <button class="opt" style="justify-content:flex-start;gap:12px;margin-bottom:16px" onclick="fecharFerramentas();document.getElementById('importInput').click()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 8l5-5 5 5"/><path d="M12 3v12"/></svg>
+      <span style="text-align:left"><b>Importar planilha</b><br><small style="font-weight:600;opacity:.8">Recuperar dados de um Excel</small></span>
+    </button>
+    <button class="btn-nuvem-sec" style="margin-bottom:0" onclick="fecharFerramentas()">Fechar</button>
   </div>
 </div>
 
@@ -1168,7 +1186,6 @@ function renderHome(){
         <button onclick="limparFiltroManejo()" title="Ver todos os animais" style="background:none;border:none;cursor:pointer;font-weight:800;color:inherit;font-size:0.9rem;padding:0 0 0 4px">✕</button>
       </span>
     </div>`;
-  document.getElementById('btnExportar').style.display = daArea.length?'block':'none';
   const lista=document.getElementById('lista');
   if(!filtrados.length){
     lista.innerHTML=`<div class="empty">${daArea.length?'Nenhum animal neste manejo ainda.':'Nenhum animal cadastrado nesta área ainda.<br>Toque em <b>"Cadastrar animal"</b> para começar.'}</div>`;
@@ -1526,6 +1543,8 @@ function relDefault(){
     secoes:{ resumo:true, raca:true, categoria:(area==='reproducao'), prenhez:(area==='reproducao'), idade:true, peso:true, manejo:false, lista:false }
   };
 }
+function abrirFerramentas(){ document.getElementById('modalFerramentas').classList.add('visivel'); }
+function fecharFerramentas(){ document.getElementById('modalFerramentas').classList.remove('visivel'); }
 function abrirRelatorio(){
   relCfg=relDefault();
   document.getElementById('relResultado').style.display='none';
