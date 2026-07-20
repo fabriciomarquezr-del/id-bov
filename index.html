@@ -25,15 +25,15 @@
       --border:     rgba(18,38,26,0.12);
       --border-2:   rgba(18,38,26,0.08);
       --shadow-sm:  0 2px 10px rgba(16,40,28,0.06);
-      --green:      #1B7A3D;
-      --green-2:    #166B4A;
-      --green-deep: #15331F;
-      --green-light:rgba(27,122,61,0.10);
-      --gold:       #D8A521;
-      --gold-dark:  #B07E15;
-      --gold-light: rgba(216,165,33,0.16);
-      --red:        #DD5237;
-      --red-light:  rgba(221,82,55,0.13);
+      --green:      #2C6E49;
+      --green-2:    #205640;
+      --green-deep: #14301E;
+      --green-light:rgba(44,110,73,0.10);
+      --gold:       #C9971F;
+      --gold-dark:  #9C7413;
+      --gold-light: rgba(201,151,31,0.16);
+      --red:        #C24E36;
+      --red-light:  rgba(194,78,54,0.13);
       --text:       #182720;
       --text-2:     #5A6353;
       --text-3:     #8A9289;
@@ -94,8 +94,8 @@
       cursor:pointer;transition:.1s;box-shadow:0 4px 0 rgba(18,38,26,.10);
       -webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center}
     .key:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(18,38,26,.10)}
-    .key.ok{background:var(--green);color:#fff;border-color:var(--green-2);box-shadow:0 4px 0 #0f5a2c}
-    .key.ok:active{box-shadow:0 1px 0 #0f5a2c}
+    .key.ok{background:var(--green);color:#fff;border-color:var(--green-2);box-shadow:0 4px 0 #174A31}
+    .key.ok:active{box-shadow:0 1px 0 #174A31}
     .key.ok:disabled{background:#B9C6BC;border-color:#a7b6ab;box-shadow:0 4px 0 #9aab9f;color:#eef;cursor:default;transform:none}
     .key.del{background:var(--red-light);border-color:rgba(221,82,55,.4);color:var(--red)}
     /* Durante o cadastro, o cabeçalho verde do app some (o assistente tem o seu
@@ -159,9 +159,9 @@
 
     .btn-grande{width:100%;border:none;cursor:pointer;font-family:'Manrope',sans-serif;font-size:1.18rem;
       background:var(--green);color:#fff;font-weight:800;padding:20px;border-radius:16px;
-      box-shadow:0 6px 0 #0f5a2c;display:flex;align-items:center;justify-content:center;gap:10px;
+      box-shadow:0 6px 0 #174A31;display:flex;align-items:center;justify-content:center;gap:10px;
       -webkit-tap-highlight-color:transparent}
-    .btn-grande:active{transform:translateY(3px);box-shadow:0 3px 0 #0f5a2c}
+    .btn-grande:active{transform:translateY(3px);box-shadow:0 3px 0 #174A31}
     .btn-claro{width:100%;margin-top:12px;border:1.5px solid var(--border);cursor:pointer;font-family:inherit;
       font-size:0.92rem;background:#fff;color:var(--text);font-weight:700;padding:13px;border-radius:12px}
 
@@ -176,15 +176,15 @@
 
     .hint{text-align:center;color:var(--text-2);font-size:0.95rem;margin-bottom:14px}
 
-    /* ── Áreas: Corte (azul-claro) e Reprodução (rosa bem leve) ──
-       Só o FUNDO muda; botões continuam verdes. */
-    body.area-corte{--bg:#E9F2FA}
-    body.area-reproducao{--bg:#FBEEF3}
+    /* ── Áreas: Corte (azul-ardósia suave) e Reprodução (rosé empoeirado) ──
+       Tons terrosos/dessaturados que harmonizam com o verde-pinheiro. */
+    body.area-corte{--bg:#EAF1F2}
+    body.area-reproducao{--bg:#F5EAEA}
     #btnArea{border:none;border-radius:10px;padding:8px 10px;font-weight:800;cursor:pointer;
       font-size:0.68rem;font-family:'Space Mono',monospace;letter-spacing:.3px;flex:none;
       -webkit-tap-highlight-color:transparent}
-    body.area-corte #btnArea{background:#CFE4F6;color:#1E4E79}
-    body.area-reproducao #btnArea{background:#F6D7E4;color:#8C3A5A}
+    body.area-corte #btnArea{background:#D3E1E4;color:#2F5E6E}
+    body.area-reproducao #btnArea{background:#EBD7D9;color:#97536A}
     .area-card{display:block;width:100%;border:2px solid;border-radius:20px;padding:26px 18px;
       margin-bottom:16px;cursor:pointer;font-family:'Manrope',sans-serif;text-align:center;
       -webkit-tap-highlight-color:transparent;transition:.12s}
@@ -204,7 +204,7 @@
     .caixa h3{font-size:1.05rem;font-weight:800;color:var(--green-deep);margin-bottom:12px;display:flex;align-items:center;gap:8px}
     .caixa input{width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);margin-bottom:10px;outline:none;font-family:inherit}
     .caixa .erro{display:none;background:var(--red-light);color:var(--red);border-radius:10px;padding:9px 12px;font-size:0.8rem;font-weight:700;margin-bottom:10px}
-    .btn-nuvem-acao{width:100%;border:none;cursor:pointer;font-family:'Manrope',sans-serif;font-size:0.95rem;background:var(--green);color:#fff;font-weight:800;padding:13px;border-radius:12px;box-shadow:0 4px 0 #0f5a2c;margin-bottom:9px}
+    .btn-nuvem-acao{width:100%;border:none;cursor:pointer;font-family:'Manrope',sans-serif;font-size:0.95rem;background:var(--green);color:#fff;font-weight:800;padding:13px;border-radius:12px;box-shadow:0 4px 0 #174A31;margin-bottom:9px}
     .btn-nuvem-sec{width:100%;border:1.5px solid var(--border);cursor:pointer;font-family:inherit;font-size:0.86rem;background:#fff;color:var(--text);font-weight:700;padding:11px;border-radius:12px;margin-bottom:9px}
 
     /* ── Pesagem: teclado compacto dentro do modal ── */
@@ -259,7 +259,7 @@
 <!-- ══ PORTA DE LOGIN (obrigatória) ══ -->
 <div id="telaLogin" style="position:fixed;inset:0;z-index:200;background:var(--green-deep);overflow-y:auto;padding:24px">
   <div style="max-width:380px;margin:6vh auto 0;text-align:center">
-    <div id="loginLogo" style="color:#D8A521;display:flex;justify-content:center"></div>
+    <div id="loginLogo" style="color:#C9971F;display:flex;justify-content:center"></div>
     <h2 style="color:#fff;font-weight:800;font-size:1.5rem;margin:10px 0 2px;font-family:'Manrope',sans-serif">ID-Bov</h2>
     <p style="color:rgba(255,255,255,.72);font-size:0.9rem;margin-bottom:22px">Identificação de bovinos</p>
     <div id="loginCarregando" style="color:rgba(255,255,255,.75);font-size:0.9rem;padding:24px">Verificando acesso…</div>
@@ -298,7 +298,7 @@
 
 <header>
   <h1>
-    <span id="brandLogo" style="color:#D8A521;display:inline-flex;align-items:center"></span>
+    <span id="brandLogo" style="color:#C9971F;display:inline-flex;align-items:center"></span>
     ID-Bov
   </h1>
   <button id="btnArea" onclick="abrirTelaArea()" title="Trocar de área">CORTE</button>
@@ -390,7 +390,7 @@
 <!-- ══ MODAL: NUVEM / CONTA ══ -->
 <div class="overlay" id="modalNuvem" onclick="if(event.target===this)fecharNuvem()">
   <div class="caixa">
-    <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#166B4A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.6A4 4 0 0 0 6.5 18z"/></svg> Nuvem</h3>
+    <h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#205640" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.6A4 4 0 0 0 6.5 18z"/></svg> Nuvem</h3>
     <div id="nuvemBody"></div>
   </div>
 </div>
@@ -418,14 +418,14 @@
 
 <div id="telaArea" style="display:none;position:fixed;inset:0;z-index:120;background:var(--green-deep);overflow-y:auto;padding:24px">
   <div style="max-width:400px;margin:8vh auto 0;text-align:center">
-    <div id="areaLogo" style="color:#D8A521;display:flex;justify-content:center"></div>
+    <div id="areaLogo" style="color:#C9971F;display:flex;justify-content:center"></div>
     <h2 style="color:#fff;font-weight:800;font-size:1.35rem;margin:6px 0 4px">ID-Bov</h2>
     <p style="color:rgba(255,255,255,.75);font-size:0.9rem;margin-bottom:26px">Qual área você vai trabalhar?</p>
-    <button class="area-card" style="background:#E9F2FA;border-color:#9CC3E5;color:#1E4E79" onclick="escolherArea('corte')">
+    <button class="area-card" style="background:#EAF1F2;border-color:#A9C6CC;color:#2F5E6E" onclick="escolherArea('corte')">
       <h3>Bovinos de CORTE</h3>
       <p>Engorda, recria e venda</p>
     </button>
-    <button class="area-card" style="background:#FBEEF3;border-color:#E7B3C8;color:#8C3A5A" onclick="escolherArea('reproducao')">
+    <button class="area-card" style="background:#F5EAEA;border-color:#DBB4BC;color:#97536A" onclick="escolherArea('reproducao')">
       <h3>Bovinos de REPRODUÇÃO</h3>
       <p>Matrizes, touros e cria</p>
     </button>
@@ -435,7 +435,7 @@
 <!-- ══ MODAL: PROPRIEDADES (lista/seleção) ══ -->
 <div class="overlay" id="modalProps" onclick="if(event.target===this)fecharProps()">
   <div class="caixa" style="max-height:88vh;overflow-y:auto">
-    <h3><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#166B4A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 10.5l9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M10 20v-6h4v6"/></svg> Propriedades</h3>
+    <h3><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#205640" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 10.5l9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M10 20v-6h4v6"/></svg> Propriedades</h3>
     <button class="btn-nuvem-sec" style="border-color:rgba(27,122,61,.45);background:var(--green-light);color:var(--green-2);font-weight:800" onclick="abrirPropCfg(null)">+ Nova propriedade</button>
     <div id="propsLista"></div>
     <button class="btn-nuvem-sec" style="margin-bottom:0" onclick="fecharProps()">Fechar</button>
@@ -1206,7 +1206,7 @@ function renderHome(){
   }
   lista.innerHTML=[...filtrados].sort((a,b)=>b.data-a.data).map(a=>`
     <div class="animal-card">
-      <div class="animal-sexo" style="background:${a.sexo==='M'?'#CFE4F6':(a.sexo==='F'?'#F6D7E4':'rgba(18,38,26,.06)')};color:${a.sexo==='M'?'#1E4E79':(a.sexo==='F'?'#B23A6E':'var(--text-3)')}">${a.sexo==='M'?'<span style="font-size:1.7rem">♂</span>':(a.sexo==='F'?'<span style="font-size:1.7rem">♀</span>':ico(area==='reproducao'?'cow':'bull',24))}</div>
+      <div class="animal-sexo" style="background:${a.sexo==='M'?'#D3E1E4':(a.sexo==='F'?'#EBD7D9':'rgba(18,38,26,.06)')};color:${a.sexo==='M'?'#2F5E6E':(a.sexo==='F'?'#A85570':'var(--text-3)')}">${a.sexo==='M'?'<span style="font-size:1.7rem">♂</span>':(a.sexo==='F'?'<span style="font-size:1.7rem">♀</span>':ico(area==='reproducao'?'cow':'bull',24))}</div>
       <div style="flex:1;min-width:0">
         <div class="mono" style="font-weight:700;font-size:1.2rem;color:${a.brinco?'var(--green-deep)':'var(--text-3)'}">${a.brinco||'— s/ brinco'}</div>
         <div style="font-size:0.78rem;color:var(--text-2);font-weight:600">${[labelSexo(a.sexo), a.raca, a.categoria||'', a.prenhez||'', labelIdade(a.idade), a.peso?`${a.peso} kg`:''].filter(Boolean).join(' · ') || '—'}</div>
