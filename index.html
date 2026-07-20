@@ -1193,7 +1193,7 @@ function renderHome(){
   }
   lista.innerHTML=[...filtrados].sort((a,b)=>b.data-a.data).map(a=>`
     <div class="animal-card">
-      <div class="animal-sexo" style="background:${a.sexo==='F'?'rgba(221,82,55,.10)':(a.sexo==='M'?'var(--green-light)':'rgba(18,38,26,.06)')};color:${a.sexo==='F'?'var(--red)':(a.sexo==='M'?'var(--green-2)':'var(--text-3)')}">${a.sexo==='F'?'♀':(a.sexo==='M'?'♂':ico(area==='reproducao'?'cow':'bull',24))}</div>
+      <div class="animal-sexo" style="background:${a.sexo==='M'?'#CFE4F6':(a.sexo==='F'?'#F6D7E4':'rgba(18,38,26,.06)')};color:${a.sexo==='M'?'#1E4E79':(a.sexo==='F'?'#B23A6E':'var(--text-3)')}">${a.sexo==='M'?'<span style="font-size:1.7rem">♂</span>':(a.sexo==='F'?'<span style="font-size:1.7rem">♀</span>':ico(area==='reproducao'?'cow':'bull',24))}</div>
       <div style="flex:1;min-width:0">
         <div class="mono" style="font-weight:700;font-size:1.2rem;color:${a.brinco?'var(--green-deep)':'var(--text-3)'}">${a.brinco||'— s/ brinco'}</div>
         <div style="font-size:0.78rem;color:var(--text-2);font-weight:600">${[labelSexo(a.sexo), a.raca, a.categoria||'', a.prenhez||'', labelIdade(a.idade), a.peso?`${a.peso} kg`:''].filter(Boolean).join(' · ') || '—'}</div>
