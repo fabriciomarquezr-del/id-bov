@@ -715,7 +715,10 @@ function renderProps(){
   const el=document.getElementById('propsLista');
   const cards=[];
   [...propriedades].sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(pr=>{
-    const bichos=rebanho.filter(a=>propDe(a)===pr.id).length;
+    const doProp=rebanho.filter(a=>propDe(a)===pr.id);
+    const bichos=doProp.length;
+    const nCorte=doProp.filter(a=>areaDe(a)==='corte').length;
+    const nRepro=doProp.filter(a=>areaDe(a)==='reproducao').length;
     const atual=pr.id===propriedadeAtualId;
     cards.push(`
     <div style="background:#fff;border:1.5px solid ${atual?'rgba(27,122,61,.5)':'var(--border)'};border-radius:14px;padding:13px 14px;margin-bottom:9px">
@@ -723,7 +726,7 @@ function renderProps(){
         ${atual?'<span style="background:var(--green);color:#fff;font-size:0.62rem;font-weight:800;border-radius:999px;padding:2px 8px;margin-left:5px;vertical-align:2px">ATUAL</span>':''}
       </div>
       <div style="font-size:0.76rem;color:var(--text-2);margin-top:3px">${[pr.proprietario?ico('pessoa',11)+' '+escaparHTML(pr.proprietario):'', pr.contato?ico('fone',11)+' '+escaparHTML(pr.contato):''].filter(Boolean).join(' · ')||'<span style="color:var(--text-3)">sem dados do proprietário</span>'}</div>
-      <div style="font-size:0.73rem;color:var(--text-3);margin-top:2px">${bichos} ${bichos===1?'animal':'animais'} no total</div>
+      <div style="font-size:0.73rem;color:var(--text-3);margin-top:2px">${bichos} ${bichos===1?'animal':'animais'} no total · <b style="color:#2F5E6E">Corte ${nCorte}</b> · <b style="color:#A85570">Reprodução ${nRepro}</b></div>
       <div style="display:flex;gap:7px;margin-top:10px">
         ${atual?'':`<button onclick="usarProp(${pr.id})" style="flex:1;border:1px solid rgba(27,122,61,.4);background:var(--green-light);color:var(--green-2);font-weight:700;font-size:0.78rem;padding:8px;border-radius:9px;cursor:pointer;font-family:inherit">Usar esta</button>`}
         <button onclick="abrirPropCfg(${pr.id})" style="flex:none;border:1px solid var(--border);background:#fff;color:var(--text-2);font-weight:700;font-size:0.78rem;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit">${ico('lapis',14)}</button>
@@ -731,13 +734,16 @@ function renderProps(){
       </div>
     </div>`);
   });
-  const geraisN=rebanho.filter(a=>propDe(a)===null).length;
+  const gerais=rebanho.filter(a=>propDe(a)===null);
+  const geraisN=gerais.length;
+  const gCorte=gerais.filter(a=>areaDe(a)==='corte').length;
+  const gRepro=gerais.filter(a=>areaDe(a)==='reproducao').length;
   cards.push(`
     <div style="background:rgba(18,38,26,.04);border:1.5px ${propriedadeAtualId===null?'solid rgba(27,122,61,.5)':'dashed var(--border)'};border-radius:14px;padding:13px 14px;margin-bottom:9px">
       <div style="font-weight:800;font-size:0.92rem;color:var(--text-2)">Geral (sem propriedade)
         ${propriedadeAtualId===null?'<span style="background:var(--green);color:#fff;font-size:0.62rem;font-weight:800;border-radius:999px;padding:2px 8px;margin-left:5px;vertical-align:2px">ATUAL</span>':''}
       </div>
-      <div style="font-size:0.73rem;color:var(--text-3);margin-top:2px">${geraisN} ${geraisN===1?'animal':'animais'}</div>
+      <div style="font-size:0.73rem;color:var(--text-3);margin-top:2px">${geraisN} ${geraisN===1?'animal':'animais'} · <b style="color:#2F5E6E">Corte ${gCorte}</b> · <b style="color:#A85570">Reprodução ${gRepro}</b></div>
       ${propriedadeAtualId===null?'':'<button onclick="usarProp(null)" style="margin-top:10px;width:100%;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:700;font-size:0.78rem;padding:8px;border-radius:9px;cursor:pointer;font-family:inherit">Usar o grupo Geral</button>'}
     </div>`);
   el.innerHTML=cards.join('');
